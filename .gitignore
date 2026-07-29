@@ -1,0 +1,12 @@
+# Xcode
+*.xcodeproj/
+!project.yml
+xcuserdata/
+DerivedData/
+build/
+
+# macOS
+.DS_Store
+
+# Upstream Gitify checkout, kept locally for reference only
+gitify/
