@@ -117,11 +117,24 @@ jobs:
         run: |
           APP="build/Build/Products/Release/Gitify.app"
           ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/notarize.zip"
-          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
+          SUBMISSION=$(xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --wait
+            --wait --output-format json)
+          echo "$SUBMISSION"
+          STATUS=$(echo "$SUBMISSION" | jq -r '.status')
+          if [ "$STATUS" != "Accepted" ]; then
+            SUB_ID=$(echo "$SUBMISSION" | jq -r '.id')
+            echo "::group::Notarization log"
+            xcrun notarytool log "$SUB_ID" \
+              --apple-id "$APPLE_ID" \
+              --team-id "$APPLE_TEAM_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" || true
+            echo "::endgroup::"
+            echo "::error::Notarization finished with status '$STATUS'"
+            exit 1
+          fi
           xcrun stapler staple "$APP"
           spctl --assess --type exec -vv "$APP"
 
