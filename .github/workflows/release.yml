@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.2.0 (creates tag v<version> from the selected branch)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: macos-15
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION="${INPUT_VERSION#v}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$VERSION' is not a valid version (expected e.g. 0.2.0 or 0.2.0-beta.1)"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::Tag v$VERSION already exists. Bump the version or delete the tag first."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "Gitify Native v$VERSION"
+          git push origin "v$VERSION"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build (Release, universal)
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          xcodebuild \
+            -project Gitify.xcodeproj \
+            -scheme Gitify \
+            -configuration Release \
+            -derivedDataPath build \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            ONLY_ACTIVE_ARCH=NO \
+            ARCHS="arm64 x86_64" \
+            build
+
+      - name: Package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          APP="build/Build/Products/Release/Gitify.app"
+          codesign --verify --deep "$APP"
+          ditto -c -k --keepParent "$APP" "Gitify-$VERSION.zip"
+          shasum -a 256 "Gitify-$VERSION.zip" | tee "Gitify-$VERSION.zip.sha256"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cat > release-notes.md <<'EOF'
+          ### Installation
+
+          1. Download the `Gitify-*.zip` asset below and unzip it.
+          2. Move `Gitify.app` into `/Applications`.
+          3. Gitify is ad-hoc signed (not notarized), so macOS blocks the first launch. Remove the quarantine attribute once:
+
+             ```sh
+             xattr -dr com.apple.quarantine /Applications/Gitify.app
+             ```
+
+          EOF
+          gh release create "v$VERSION" \
+            "Gitify-$VERSION.zip" \
+            "Gitify-$VERSION.zip.sha256" \
+            --title "Gitify Native v$VERSION" \
+            --notes-file release-notes.md \
+            --generate-notes

@@ -17,6 +17,15 @@ xcodebuild -project Gitify.xcodeproj -scheme Gitify -configuration Debug build
 open ~/Library/Developer/Xcode/DerivedData/Gitify-*/Build/Products/Debug/Gitify.app
 ```
 
+## Releases
+
+Tagged releases are built and published automatically by [GitHub Actions](.github/workflows/release.yml) as a universal (Apple silicon + Intel) ad-hoc-signed app. To cut a release, either:
+
+- push a tag: `git tag v0.2.0 && git push origin v0.2.0`, or
+- run the **Release** workflow manually from the Actions tab with a version number (it creates the tag for you).
+
+The version baked into the app comes from the tag. Downloads are not notarized, so first launch requires clearing quarantine: `xattr -dr com.apple.quarantine /Applications/Gitify.app`.
+
 ## Features
 
 - Menu bar popover with GitHub notifications, grouped by repository or date
