@@ -10,3 +10,6 @@ build/
 
 # Upstream Gitify checkout, kept locally for reference only
 gitify/
+
+# Signing certificates
+*.p12
