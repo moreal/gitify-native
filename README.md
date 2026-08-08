@@ -24,7 +24,23 @@ Tagged releases are built and published automatically by [GitHub Actions](.githu
 - push a tag: `git tag v0.2.0 && git push origin v0.2.0`, or
 - run the **Release** workflow manually from the Actions tab with a version number (it creates the tag for you).
 
-The version baked into the app comes from the tag. Downloads are not notarized, so first launch requires clearing quarantine: `xattr -dr com.apple.quarantine /Applications/Gitify.app`.
+The version baked into the app comes from the tag.
+
+### Code signing
+
+By default releases are **ad-hoc signed**: macOS Gatekeeper reports downloads as "damaged", and the first launch requires clearing quarantine (`xattr -dr com.apple.quarantine /Applications/Gitify.app`). This is an Apple policy limitation — passing Gatekeeper requires a paid Apple Developer membership; no CI configuration can work around it.
+
+To ship properly signed and notarized releases, configure all five repository secrets — the workflow then switches to Developer ID signing with hardened runtime, notarizes with `notarytool`, and staples the ticket:
+
+| Secret | Value |
+| --- | --- |
+| `MACOS_CERTIFICATE_P12` | base64 of a Developer ID Application certificate export (`base64 -i cert.p12`) |
+| `MACOS_CERTIFICATE_PASSWORD` | password of the `.p12` export |
+| `APPLE_TEAM_ID` | 10-character team ID |
+| `APPLE_ID` | Apple ID email used for notarization |
+| `APPLE_APP_SPECIFIC_PASSWORD` | app-specific password from appleid.apple.com |
+
+If any secret is missing, the workflow falls back to ad-hoc signing.
 
 ## Features
 

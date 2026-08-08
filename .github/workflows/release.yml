@@ -18,6 +18,11 @@ jobs:
   release:
     name: Build & Release
     runs-on: macos-15
+    env:
+      # Developer ID signing + notarization is enabled only when ALL secrets
+      # are configured; otherwise the app is ad-hoc signed (runs only after
+      # `xattr -dr com.apple.quarantine`).
+      SIGNED: ${{ secrets.MACOS_CERTIFICATE_P12 != '' && secrets.MACOS_CERTIFICATE_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' }}
     steps:
       - name: Check out
         uses: actions/checkout@v5
@@ -52,6 +57,23 @@ jobs:
           git tag -a "v$VERSION" -m "Gitify Native v$VERSION"
           git push origin "v$VERSION"
 
+      - name: Import Developer ID certificate
+        if: env.SIGNED == 'true'
+        env:
+          CERT_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          echo "$CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain
+          rm "$RUNNER_TEMP/cert.p12"
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
@@ -61,7 +83,19 @@ jobs:
       - name: Build (Release, universal)
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          if [ "$SIGNED" = "true" ]; then
+            SIGN_ARGS=(
+              CODE_SIGN_STYLE=Manual
+              "CODE_SIGN_IDENTITY=Developer ID Application"
+              "DEVELOPMENT_TEAM=$APPLE_TEAM_ID"
+              ENABLE_HARDENED_RUNTIME=YES
+              "OTHER_CODE_SIGN_FLAGS=--timestamp"
+            )
+          else
+            SIGN_ARGS=(CODE_SIGN_IDENTITY=-)
+          fi
           xcodebuild \
             -project Gitify.xcodeproj \
             -scheme Gitify \
@@ -71,7 +105,25 @@ jobs:
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             ONLY_ACTIVE_ARCH=NO \
             ARCHS="arm64 x86_64" \
+            "${SIGN_ARGS[@]}" \
             build
+
+      - name: Notarize and staple
+        if: env.SIGNED == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          APP="build/Build/Products/Release/Gitify.app"
+          ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/notarize.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --wait
+          xcrun stapler staple "$APP"
+          spctl --assess --type exec -vv "$APP"
 
       - name: Package
         env:
@@ -87,18 +139,32 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          cat > release-notes.md <<'EOF'
+          if [ "$SIGNED" = "true" ]; then
+            cat > release-notes.md <<'EOF'
+          ### Installation
+
+          1. Download the `Gitify-*.zip` asset below and unzip it.
+          2. Move `Gitify.app` into `/Applications` and launch it.
+
+          The app is Developer ID signed and notarized by Apple.
+
+          EOF
+          else
+            cat > release-notes.md <<'EOF'
           ### Installation
 
           1. Download the `Gitify-*.zip` asset below and unzip it.
           2. Move `Gitify.app` into `/Applications`.
-          3. Gitify is ad-hoc signed (not notarized), so macOS blocks the first launch. Remove the quarantine attribute once:
+          3. This build is ad-hoc signed (not notarized), so macOS will report it as
+             "damaged" on first launch. Remove the quarantine attribute once, then
+             launch normally:
 
              ```sh
              xattr -dr com.apple.quarantine /Applications/Gitify.app
              ```
 
           EOF
+          fi
           gh release create "v$VERSION" \
             "Gitify-$VERSION.zip" \
             "Gitify-$VERSION.zip.sha256" \
