@@ -18,6 +18,7 @@ jobs:
   release:
     name: Build & Release
     runs-on: macos-15
+    timeout-minutes: 120
     env:
       # Developer ID signing + notarization is enabled only when ALL secrets
       # are configured; otherwise the app is ad-hoc signed (runs only after
