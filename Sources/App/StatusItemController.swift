@@ -10,6 +10,10 @@ final class StatusItemController: NSObject {
     private let settings: SettingsStore
     private let accountsStore: AccountsStore
     private let notificationsStore: NotificationsStore
+    /// Count title deferred while the popover is open: applying it would resize
+    /// the variable-length status item and make AppKit re-anchor the popover,
+    /// visibly shifting it sideways.
+    private var pendingTitle: String?
 
     init(
         settings: SettingsStore,
@@ -24,6 +28,7 @@ final class StatusItemController: NSObject {
 
         popover.behavior = .transient
         popover.animates = false
+        popover.delegate = self
         popover.contentSize = NSSize(width: 420, height: 560)
         popover.contentViewController = NSHostingController(
             rootView: PopoverRootView()
@@ -66,7 +71,13 @@ final class StatusItemController: NSObject {
         image?.isTemplate = (imageName == "tray-idleTemplate")
         button.image = image
 
-        button.title = (settings.showCountInTray && count > 0) ? " \(count)" : ""
+        let title = (settings.showCountInTray && count > 0) ? " \(count)" : ""
+        if popover.isShown {
+            pendingTitle = (button.title == title) ? nil : title
+        } else {
+            button.title = title
+            pendingTitle = nil
+        }
         button.imagePosition = .imageLeft
     }
 
@@ -108,5 +119,14 @@ final class StatusItemController: NSObject {
 
     @objc private func quit() {
         NSApp.terminate(nil)
+    }
+}
+
+extension StatusItemController: NSPopoverDelegate {
+    func popoverDidClose(_ notification: Notification) {
+        if let title = pendingTitle {
+            statusItem.button?.title = title
+            pendingTitle = nil
+        }
     }
 }
