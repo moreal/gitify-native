@@ -80,6 +80,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         notificationsStore.startPolling()
+
+        if UITestMock.shouldAutoOpenPopover {
+            // Delay past XCUITest's automation-session setup: opening the
+            // popover while the session is still attaching crashes the app
+            // inside XCTAutomationSupport's snapshot traversal (SIGBUS,
+            // unbounded XCElementSnapshot recursion). 3s is comfortably after
+            // launch quiesce; the tests wait up to 10s for the popover.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+                self?.statusItemController.togglePopover()
+            }
+        }
     }
 
     private var hotKey: GlobalHotKey?

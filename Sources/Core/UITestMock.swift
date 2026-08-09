@@ -8,6 +8,12 @@ import Foundation
 enum UITestMock {
     static let isActive = ProcessInfo.processInfo.arguments.contains("--uitest-mock-github")
 
+    /// Opens the popover shortly after launch. Synthesized menu bar clicks are
+    /// unreliable (fullscreen spaces, crowded menu bars, the notch), so UI
+    /// tests use this instead of clicking the status item; togglePopover() is
+    /// the same code path the click handler runs.
+    static let shouldAutoOpenPopover = ProcessInfo.processInfo.arguments.contains("--uitest-open-popover")
+
     /// Number of unread notifications initially served by the mock. Two digits,
     /// so marking one as done changes the tray count's rendered width (10 → 9).
     static let notificationCount = 10

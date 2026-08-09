@@ -16,7 +16,7 @@ final class PopoverStabilityUITests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["--uitest-mock-github"]
+        app.launchArguments = ["--uitest-mock-github", "--uitest-open-popover"]
         app.launch()
     }
 
@@ -72,16 +72,12 @@ final class PopoverStabilityUITests: XCTestCase {
 
     // MARK: - Helpers
 
+    /// The app opens the popover itself via --uitest-open-popover; synthesized
+    /// menu bar clicks are too environment-dependent (fullscreen spaces,
+    /// crowded menu bars, the notch) to be a stable test fixture.
     private func openPopover() -> XCUIElement {
-        var statusItem = app.statusItems["gitify-status-item"]
-        if !statusItem.waitForExistence(timeout: 5) {
-            statusItem = app.statusItems.firstMatch
-            XCTAssertTrue(statusItem.waitForExistence(timeout: 5), "status item should appear in the menu bar")
-        }
-        statusItem.click()
-
         let popover = app.popovers.firstMatch
-        XCTAssertTrue(popover.waitForExistence(timeout: 5), "clicking the status item should open the popover")
+        XCTAssertTrue(popover.waitForExistence(timeout: 10), "app should auto-open the popover at launch")
         return popover
     }
 }
