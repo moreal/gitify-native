@@ -20,6 +20,9 @@ struct GitHubClient {
         // A cached /notifications response would show stale data for a poller.
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.urlCache = nil
+        if UITestMock.isActive {
+            config.protocolClasses = [UITestMockURLProtocol.self]
+        }
         return URLSession(configuration: config)
     }()
 

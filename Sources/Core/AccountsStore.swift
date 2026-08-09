@@ -11,6 +11,10 @@ final class AccountsStore: ObservableObject {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        if UITestMock.isActive {
+            accounts = [UITestMock.account]
+            return
+        }
         if let data = defaults.data(forKey: Self.storageKey),
            let stored = try? JSONDecoder().decode([Account].self, from: data) {
             accounts = stored
@@ -20,6 +24,9 @@ final class AccountsStore: ObservableObject {
     var isAuthenticated: Bool { !accounts.isEmpty }
 
     func client(for account: Account) -> GitHubClient? {
+        if UITestMock.isActive {
+            return GitHubClient(baseURL: account.apiBaseURL, token: "uitest-token")
+        }
         guard let token = Keychain.token(for: account.id) else { return nil }
         return GitHubClient(baseURL: account.apiBaseURL, token: token)
     }

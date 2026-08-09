@@ -34,6 +34,7 @@ final class StatusItemController: NSObject {
         )
 
         if let button = statusItem.button {
+            button.setAccessibilityIdentifier("gitify-status-item")
             button.action = #selector(handleClick(_:))
             button.target = self
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])

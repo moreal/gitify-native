@@ -33,3 +33,29 @@ targets:
         ENABLE_HARDENED_RUNTIME: NO
         ENABLE_APP_SANDBOX: NO
         DEAD_CODE_STRIPPING: YES
+  GitifyUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: Tests/GitifyUITests
+    dependencies:
+      - target: Gitify
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.moreal.gitify.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+        TEST_TARGET_NAME: Gitify
+schemes:
+  Gitify:
+    build:
+      targets:
+        Gitify: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - GitifyUITests

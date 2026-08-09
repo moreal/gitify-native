@@ -24,9 +24,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
-        settings = SettingsStore()
-        accountsStore = AccountsStore()
-        filtersStore = FiltersStore()
+        let defaults: UserDefaults = UITestMock.isActive ? UITestMock.makeDefaults() : .standard
+        settings = SettingsStore(defaults: defaults)
+        accountsStore = AccountsStore(defaults: defaults)
+        filtersStore = FiltersStore(defaults: defaults)
         notificationsStore = NotificationsStore(
             accountsStore: accountsStore,
             settings: settings,
@@ -58,7 +59,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.deliverSystemNotifications(for: fresh)
         }
 
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        if !UITestMock.isActive {
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        }
         UNUserNotificationCenter.current().delegate = self
 
         // Refetch immediately after system wake / screen wake (Gitify: system-wake IPC).

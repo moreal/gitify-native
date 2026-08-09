@@ -221,13 +221,13 @@ struct NotificationRow: View {
             Spacer(minLength: 4)
             if isHovered {
                 HStack(spacing: 6) {
-                    actionButton("checkmark", help: "Mark as done") {
+                    actionButton("checkmark", help: "Mark as done", id: "notification-mark-done") {
                         await notificationsStore.markDone(notification, account: account)
                     }
-                    actionButton("eye.slash", help: "Mark as read") {
+                    actionButton("eye.slash", help: "Mark as read", id: "notification-mark-read") {
                         await notificationsStore.markRead(notification, account: account)
                     }
-                    actionButton("bell.slash", help: "Unsubscribe") {
+                    actionButton("bell.slash", help: "Unsubscribe", id: "notification-unsubscribe") {
                         await notificationsStore.unsubscribe(notification, account: account)
                     }
                 }
@@ -244,6 +244,7 @@ struct NotificationRow: View {
     private func actionButton(
         _ icon: String,
         help: String,
+        id: String,
         action: @escaping () async -> Void
     ) -> some View {
         Button {
@@ -253,6 +254,8 @@ struct NotificationRow: View {
         }
         .buttonStyle(.borderless)
         .help(help)
+        .accessibilityLabel(help)
+        .accessibilityIdentifier(id)
     }
 
     private func open() {
