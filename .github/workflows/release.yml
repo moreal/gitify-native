@@ -147,7 +147,49 @@ jobs:
           APP="build/Build/Products/Release/Gitify.app"
           codesign --verify --deep "$APP"
           ditto -c -k --keepParent "$APP" "Gitify-$VERSION.zip"
+          DMG_ROOT="$RUNNER_TEMP/dmg-root"
+          mkdir "$DMG_ROOT"
+          ditto "$APP" "$DMG_ROOT/Gitify.app"
+          ln -s /Applications "$DMG_ROOT/Applications"
+          hdiutil create -volname "Gitify" -srcfolder "$DMG_ROOT" -ov -format UDZO "Gitify-$VERSION.dmg"
+
+      - name: Sign, notarize, and staple DMG
+        if: env.SIGNED == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          DMG="Gitify-$VERSION.dmg"
+          codesign --force --sign "Developer ID Application" --timestamp "$DMG"
+          SUBMISSION=$(xcrun notarytool submit "$DMG" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --wait --output-format json)
+          echo "$SUBMISSION"
+          STATUS=$(echo "$SUBMISSION" | jq -r '.status')
+          if [ "$STATUS" != "Accepted" ]; then
+            SUB_ID=$(echo "$SUBMISSION" | jq -r '.id')
+            echo "::group::Notarization log"
+            xcrun notarytool log "$SUB_ID" \
+              --apple-id "$APPLE_ID" \
+              --team-id "$APPLE_TEAM_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" || true
+            echo "::endgroup::"
+            echo "::error::DMG notarization finished with status '$STATUS'"
+            exit 1
+          fi
+          xcrun stapler staple "$DMG"
+          spctl --assess --type open --context context:primary-signature -vv "$DMG"
+
+      - name: Checksums
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
           shasum -a 256 "Gitify-$VERSION.zip" | tee "Gitify-$VERSION.zip.sha256"
+          shasum -a 256 "Gitify-$VERSION.dmg" | tee "Gitify-$VERSION.dmg.sha256"
 
       - name: Create GitHub Release
         env:
@@ -158,18 +200,20 @@ jobs:
             cat > release-notes.md <<'EOF'
           ### Installation
 
-          1. Download the `Gitify-*.zip` asset below and unzip it.
-          2. Move `Gitify.app` into `/Applications` and launch it.
+          1. Download the `Gitify-*.dmg` asset below and open it.
+          2. Drag `Gitify.app` into `Applications` and launch it.
 
-          The app is Developer ID signed and notarized by Apple.
+          A `Gitify-*.zip` containing the same app is also attached. Both are
+          Developer ID signed and notarized by Apple.
 
           EOF
           else
             cat > release-notes.md <<'EOF'
           ### Installation
 
-          1. Download the `Gitify-*.zip` asset below and unzip it.
-          2. Move `Gitify.app` into `/Applications`.
+          1. Download the `Gitify-*.dmg` asset below and open it (a `.zip` with
+             the same app is also attached).
+          2. Drag `Gitify.app` into `Applications`.
           3. This build is ad-hoc signed (not notarized), so macOS will report it as
              "damaged" on first launch. Remove the quarantine attribute once, then
              launch normally:
@@ -181,6 +225,8 @@ jobs:
           EOF
           fi
           gh release create "v$VERSION" \
+            "Gitify-$VERSION.dmg" \
+            "Gitify-$VERSION.dmg.sha256" \
             "Gitify-$VERSION.zip" \
             "Gitify-$VERSION.zip.sha256" \
             --title "Gitify Native v$VERSION" \
