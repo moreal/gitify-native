@@ -89,6 +89,9 @@ struct SettingsView: View {
                 }
             }
             .formStyle(.grouped)
+            // Drop the grouped form's opaque backdrop so the popover material
+            // shows through, matching the notifications list surface.
+            .scrollContentBackground(.hidden)
         }
         .onChange(of: settings.participating) { _, _ in refetch() }
         .onChange(of: settings.fetchReadNotifications) { _, _ in refetch() }

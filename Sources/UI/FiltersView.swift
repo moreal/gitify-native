@@ -66,6 +66,9 @@ struct FiltersView: View {
                 }
             }
             .formStyle(.grouped)
+            // Drop the grouped form's opaque backdrop so the popover material
+            // shows through, matching the notifications list surface.
+            .scrollContentBackground(.hidden)
         }
         .onAppear {
             includeText = filters.includeTokens.joined(separator: " ")

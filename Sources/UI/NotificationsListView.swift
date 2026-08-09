@@ -169,7 +169,9 @@ struct NotificationsListView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(.bar)
+        // Lightest material that still masks rows scrolling under the pinned
+        // header; .bar reads as a heavy chrome strip on the popover material.
+        .background(.ultraThinMaterial)
     }
 
     private func emptyState(icon: String, title: String, detail: String) -> some View {
