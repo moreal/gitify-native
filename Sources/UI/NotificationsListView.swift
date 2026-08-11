@@ -8,6 +8,13 @@ struct NotificationsListView: View {
     let onOpenSettings: () -> Void
     let onOpenFilters: () -> Void
 
+    /// Collapsed account sections (account id) and repository sections
+    /// ("accountID|owner/repo"). Session-local like upstream's useState,
+    /// though sticky here: a repo that empties and later returns stays
+    /// collapsed until the view is recreated.
+    @State private var collapsedAccounts: Set<String> = []
+    @State private var collapsedRepos: Set<String> = []
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -80,17 +87,27 @@ struct NotificationsListView: View {
                 ScrollView {
                     LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
                         ForEach(visibleGroups) { group in
+                            // Only an account whose header (and chevron) is
+                            // visible can be collapsed.
+                            let isAccountCollapsed = showAccountHeaders
+                                && collapsedAccounts.contains(group.id)
                             if showAccountHeaders {
-                                accountHeader(group.account, hasError: group.error != nil)
+                                accountHeader(
+                                    group.account,
+                                    hasError: group.error != nil,
+                                    isCollapsed: isAccountCollapsed
+                                )
                             }
-                            if let error = group.error {
-                                inlineErrorBlock(error)
-                            } else {
-                                switch settings.groupBy {
-                                case .repository:
-                                    repositorySections(group)
-                                case .date:
-                                    dateRows(group)
+                            if !isAccountCollapsed {
+                                if let error = group.error {
+                                    inlineErrorBlock(error)
+                                } else {
+                                    switch settings.groupBy {
+                                    case .repository:
+                                        repositorySections(group)
+                                    case .date:
+                                        dateRows(group)
+                                    }
                                 }
                             }
                         }
@@ -116,13 +133,19 @@ struct NotificationsListView: View {
             byRepo[key, default: []].append(item)
         }
         return ForEach(repoOrder, id: \.fullName) { repository in
+            let collapseKey = "\(group.id)|\(repository.fullName)"
+            let isCollapsed = collapsedRepos.contains(collapseKey)
             Section {
-                ForEach(byRepo[repository.fullName] ?? []) { item in
-                    NotificationRow(notification: item, account: group.account, showRepo: false)
-                    Divider().padding(.leading, 12)
+                if !isCollapsed {
+                    ForEach(byRepo[repository.fullName] ?? []) { item in
+                        NotificationRow(notification: item, account: group.account, showRepo: false)
+                        Divider().padding(.leading, 12)
+                    }
                 }
             } header: {
-                repoHeader(repository, account: group.account)
+                repoHeader(repository, account: group.account, isCollapsed: isCollapsed) {
+                    collapsedRepos.toggle(collapseKey)
+                }
             }
         }
     }
@@ -137,8 +160,9 @@ struct NotificationsListView: View {
 
     // MARK: - Headers
 
-    private func accountHeader(_ account: Account, hasError: Bool) -> some View {
-        HStack(spacing: 8) {
+    private func accountHeader(_ account: Account, hasError: Bool, isCollapsed: Bool) -> some View {
+        let toggle = { collapsedAccounts.toggle(account.id) }
+        return HStack(spacing: 8) {
             AvatarView(url: URL(string: account.user.avatarUrl), size: 16)
             Text("@\(account.user.login)")
                 .font(.subheadline.bold())
@@ -146,6 +170,7 @@ struct NotificationsListView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
+            collapseToggle(isCollapsed: isCollapsed, label: "@\(account.user.login)", action: toggle)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
@@ -154,6 +179,24 @@ struct NotificationsListView: View {
                 ? Color(nsColor: .systemRed).opacity(0.12)
                 : Color.accentColor.opacity(0.08)
         )
+        .contentShape(Rectangle())
+        .onTapGesture(perform: toggle)
+    }
+
+    /// Chevron button toggling a collapsible section — the accessible
+    /// control; the header row's tap gesture mirrors it for mouse users.
+    private func collapseToggle(
+        isCollapsed: Bool,
+        label: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
+                .font(.caption2.bold())
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(isCollapsed ? "Show" : "Hide") notifications for \(label)")
     }
 
     /// Compact in-section error for one failing account, so other accounts'
@@ -179,7 +222,12 @@ struct NotificationsListView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func repoHeader(_ repository: GHNotification.Repository, account: Account) -> some View {
+    private func repoHeader(
+        _ repository: GHNotification.Repository,
+        account: Account,
+        isCollapsed: Bool,
+        onToggleCollapse: @escaping () -> Void
+    ) -> some View {
         HStack {
             AvatarView(url: URL(string: repository.owner.avatarUrl), size: 14)
             Button {
@@ -208,12 +256,19 @@ struct NotificationsListView: View {
             }
             .buttonStyle(.borderless)
             .help("Mark repository as read")
+            collapseToggle(
+                isCollapsed: isCollapsed,
+                label: repository.fullName,
+                action: onToggleCollapse
+            )
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         // Lightest material that still masks rows scrolling under the pinned
         // header; .bar reads as a heavy chrome strip on the popover material.
         .background(.ultraThinMaterial)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onToggleCollapse)
     }
 
     private func emptyState(
@@ -254,6 +309,13 @@ struct NotificationsListView: View {
                     .padding(.top, 8)
             }
         }
+    }
+}
+
+private extension Set {
+    /// Membership toggle for the collapse sets.
+    mutating func toggle(_ member: Element) {
+        if !insert(member).inserted { remove(member) }
     }
 }
 

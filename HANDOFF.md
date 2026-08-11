@@ -119,7 +119,7 @@ Upstream reference: `src/renderer/utils/notifications/pollInterval.ts`,
       click → open the author's profile. Requires enrichment to also capture `avatar_url`.
 - [x] (commit 2) Repository header: owner avatar + make the repo name a button that
       opens the repository in the browser.
-- [ ] (commit 3) Collapse/expand per repository section (chevron, matching upstream's
+- [x] (commit 3) Collapse/expand per repository section (chevron, matching upstream's
       click-to-collapse header), and per account section when account headers show.
 - [ ] (commit 4) Account header extras: avatar click → profile; hover quick-links
       "My issues" and "My pull requests" opening the host pages.
