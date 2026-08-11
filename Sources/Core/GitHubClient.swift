@@ -154,17 +154,25 @@ struct GitHubClient {
 
     // MARK: - Notifications
 
-    func notifications(participating: Bool, includeRead: Bool) async throws -> [GHNotification] {
+    /// A short page terminates pagination, so this must match `per_page`
+    /// below or fetchAll would loop forever.
+    private static let notificationsPageSize = 100
+
+    /// fetchAll pages through every result (upstream fetchAllNotifications);
+    /// off fetches only the first page.
+    func notifications(participating: Bool, includeRead: Bool, fetchAll: Bool) async throws -> [GHNotification] {
         var all: [GHNotification] = []
-        for page in 1...10 {
+        var page = 1
+        while true {
             let pageItems: [GHNotification] = try await get("notifications", query: [
                 URLQueryItem(name: "all", value: String(includeRead)),
                 URLQueryItem(name: "participating", value: String(participating)),
-                URLQueryItem(name: "per_page", value: "100"),
+                URLQueryItem(name: "per_page", value: String(Self.notificationsPageSize)),
                 URLQueryItem(name: "page", value: String(page)),
             ])
             all.append(contentsOf: pageItems)
-            if pageItems.count < 100 { break }
+            if !fetchAll || pageItems.count < Self.notificationsPageSize { break }
+            page += 1
         }
         return all
     }

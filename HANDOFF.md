@@ -102,7 +102,7 @@ Upstream reference: `src/renderer/components/settings/SystemSettings.tsx` (live 
 
 ## 6. Fetch behavior refinements
 
-- [ ] (commit 1) `fetchAllNotifications` setting (default true): off = first page only;
+- [x] (commit 1) `fetchAllNotifications` setting (default true): off = first page only;
       on = paginate all pages (drop the current hard 10-page cap).
 - [ ] (commit 2) Honor GitHub's `X-Poll-Interval` response header: effective poll
       interval = `max(fetchInterval, serverInterval)`.

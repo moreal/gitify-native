@@ -36,6 +36,7 @@ struct SettingsView: View {
                 Section("Notifications") {
                     Toggle("Only participating", isOn: $settings.participating)
                     Toggle("Fetch read notifications too", isOn: $settings.fetchReadNotifications)
+                    Toggle("Fetch all notifications (every page)", isOn: $settings.fetchAllNotifications)
                     Toggle("Detailed notifications (state colors, numbers)", isOn: $settings.detailedNotifications)
                     Toggle("Mark as done when opening", isOn: $settings.markAsDoneOnOpen)
                     Toggle("Mark as done when unsubscribing", isOn: $settings.markAsDoneOnUnsubscribe)
@@ -105,6 +106,7 @@ struct SettingsView: View {
         .onDisappear { shortcutRecorder.stop() }
         .onChange(of: settings.participating) { _, _ in refetch() }
         .onChange(of: settings.fetchReadNotifications) { _, _ in refetch() }
+        .onChange(of: settings.fetchAllNotifications) { _, _ in refetch() }
         .onChange(of: settings.detailedNotifications) { _, _ in refetch() }
         .onChange(of: settings.showCountInTray) { _, _ in refreshTray() }
         .onChange(of: settings.useUnreadActiveIcon) { _, _ in refreshTray() }

@@ -168,7 +168,8 @@ final class NotificationsStore: ObservableObject {
             do {
                 let items = try await client.notifications(
                     participating: settings.participating,
-                    includeRead: settings.fetchReadNotifications
+                    includeRead: settings.fetchReadNotifications,
+                    fetchAll: settings.fetchAllNotifications
                 )
                 newGroups.append(AccountNotifications(account: account, notifications: items))
             } catch {

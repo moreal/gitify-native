@@ -30,6 +30,8 @@ final class SettingsStore: ObservableObject {
     @Published var participating: Bool { didSet { save() } }
     /// Also fetch read notifications (`all` API param).
     @Published var fetchReadNotifications: Bool { didSet { save() } }
+    /// Paginate through every page; off = first page (100) only.
+    @Published var fetchAllNotifications: Bool { didSet { save() } }
     /// Enrich PR/Issue notifications with state (colored icons, numbers, deep links).
     @Published var detailedNotifications: Bool { didSet { save() } }
     @Published var markAsDoneOnOpen: Bool { didSet { save() } }
@@ -67,6 +69,7 @@ final class SettingsStore: ObservableObject {
         self.defaults = defaults
         participating = defaults.object(forKey: "participating") as? Bool ?? false
         fetchReadNotifications = defaults.object(forKey: "fetchReadNotifications") as? Bool ?? false
+        fetchAllNotifications = defaults.object(forKey: "fetchAllNotifications") as? Bool ?? true
         detailedNotifications = defaults.object(forKey: "detailedNotifications") as? Bool ?? true
         markAsDoneOnOpen = defaults.object(forKey: "markAsDoneOnOpen") as? Bool ?? false
         markAsDoneOnUnsubscribe = defaults.object(forKey: "markAsDoneOnUnsubscribe") as? Bool ?? false
@@ -95,6 +98,7 @@ final class SettingsStore: ObservableObject {
     private func save() {
         defaults.set(participating, forKey: "participating")
         defaults.set(fetchReadNotifications, forKey: "fetchReadNotifications")
+        defaults.set(fetchAllNotifications, forKey: "fetchAllNotifications")
         defaults.set(detailedNotifications, forKey: "detailedNotifications")
         defaults.set(markAsDoneOnOpen, forKey: "markAsDoneOnOpen")
         defaults.set(markAsDoneOnUnsubscribe, forKey: "markAsDoneOnUnsubscribe")

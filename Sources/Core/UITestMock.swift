@@ -80,7 +80,19 @@ final class UITestMockURLProtocol: URLProtocol {
         let path = request.url?.path ?? ""
 
         if method == "GET", path == "/notifications" {
-            return (200, notificationsJSON(ids))
+            // Honor pagination so the client's fetch-all loop terminates even
+            // if the mock ever serves more than one page's worth of items.
+            let query = request.url.flatMap {
+                URLComponents(url: $0, resolvingAgainstBaseURL: false)?.queryItems
+            } ?? []
+            let page = query.first { $0.name == "page" }?.value.flatMap(Int.init) ?? 1
+            let perPage = query.first { $0.name == "per_page" }?.value.flatMap(Int.init) ?? 50
+            let sorted = ids.sorted()
+            let start = (page - 1) * perPage
+            let slice = start < sorted.count
+                ? Array(sorted[start..<min(start + perPage, sorted.count)])
+                : []
+            return (200, notificationsJSON(slice))
         }
         if path.hasPrefix("/notifications/threads/") {
             let last = path.split(separator: "/").last.map(String.init) ?? ""
@@ -95,8 +107,8 @@ final class UITestMockURLProtocol: URLProtocol {
         return (200, Data("{}".utf8))
     }
 
-    private static func notificationsJSON(_ ids: Set<Int>) -> Data {
-        let items = ids.sorted().map { id -> [String: Any] in
+    private static func notificationsJSON(_ ids: [Int]) -> Data {
+        let items = ids.map { id -> [String: Any] in
             [
                 "id": String(1000 + id),
                 "unread": true,
