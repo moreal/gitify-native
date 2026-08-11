@@ -32,6 +32,7 @@ struct SettingsView: View {
                         Text("Date").tag(GroupBy.date)
                     }
                     Toggle("Always show account header", isOn: $settings.showAccountHeader)
+                    Toggle("Wrap notification titles", isOn: $settings.wrapNotificationTitle)
                 }
                 Section("Notifications") {
                     Toggle("Only participating", isOn: $settings.participating)

@@ -66,6 +66,8 @@ final class SettingsStore: ObservableObject {
     @Published var groupBy: GroupBy { didSet { save() } }
     /// Show account section headers even with a single account.
     @Published var showAccountHeader: Bool { didSet { save() } }
+    /// Wrap notification titles fully; off truncates to one line.
+    @Published var wrapNotificationTitle: Bool { didSet { save() } }
 
     static let defaultOAuthClientID = "Ov23liQIkFs5ehQLNzHF"
 
@@ -99,6 +101,7 @@ final class SettingsStore: ObservableObject {
         colorMode = ColorMode(rawValue: defaults.string(forKey: "colorMode") ?? "") ?? .normal
         groupBy = GroupBy(rawValue: defaults.string(forKey: "groupBy") ?? "") ?? .repository
         showAccountHeader = defaults.object(forKey: "showAccountHeader") as? Bool ?? false
+        wrapNotificationTitle = defaults.object(forKey: "wrapNotificationTitle") as? Bool ?? false
     }
 
     private func save() {
@@ -124,5 +127,6 @@ final class SettingsStore: ObservableObject {
         defaults.set(colorMode.rawValue, forKey: "colorMode")
         defaults.set(groupBy.rawValue, forKey: "groupBy")
         defaults.set(showAccountHeader, forKey: "showAccountHeader")
+        defaults.set(wrapNotificationTitle, forKey: "wrapNotificationTitle")
     }
 }

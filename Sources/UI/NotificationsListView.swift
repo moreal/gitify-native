@@ -388,7 +388,7 @@ struct NotificationRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(Self.attributedTitle(notification.subject.title))
                     .font(.callout)
-                    .lineLimit(2)
+                    .lineLimit(settings.wrapNotificationTitle ? nil : 1)
                 HStack(spacing: 4) {
                     authorAvatar
                     Text(captionText)

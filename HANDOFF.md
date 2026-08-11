@@ -124,7 +124,7 @@ Upstream reference: `src/renderer/utils/notifications/pollInterval.ts`,
 - [x] (commit 4) Account header extras: avatar click → profile; hover quick-links
       "My issues" and "My pull requests" opening the host pages.
 - [x] (commit 5) Render backtick-wrapped title segments as monospace chips.
-- [ ] (commit 6) `wrapNotificationTitle` setting (default false): off = 1-line
+- [x] (commit 6) `wrapNotificationTitle` setting (default false): off = 1-line
       truncated title, on = wrap fully (today titles are fixed at 2 lines).
 - [ ] (commit 7) `showNumber` setting (default true) gating the `#N` in row captions.
 
