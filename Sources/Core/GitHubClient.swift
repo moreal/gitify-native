@@ -134,11 +134,6 @@ struct GitHubClient {
         return (data, http)
     }
 
-    private func get<T: Decodable>(_ path: String, query: [URLQueryItem] = []) async throws -> T {
-        let (data, _) = try await send(request("GET", path, query: query))
-        return try Self.decoder.decode(T.self, from: data)
-    }
-
     // MARK: - User
 
     /// Returns the authenticated user and the token's OAuth scopes (X-OAuth-Scopes header).
@@ -159,22 +154,33 @@ struct GitHubClient {
     private static let notificationsPageSize = 100
 
     /// fetchAll pages through every result (upstream fetchAllNotifications);
-    /// off fetches only the first page.
-    func notifications(participating: Bool, includeRead: Bool, fetchAll: Bool) async throws -> [GHNotification] {
+    /// off fetches only the first page. Also reports the server-recommended
+    /// minimum poll interval (X-Poll-Interval header), if present.
+    func notifications(
+        participating: Bool,
+        includeRead: Bool,
+        fetchAll: Bool
+    ) async throws -> (items: [GHNotification], serverPollInterval: TimeInterval?) {
         var all: [GHNotification] = []
+        var serverPollInterval: TimeInterval?
         var page = 1
         while true {
-            let pageItems: [GHNotification] = try await get("notifications", query: [
+            let (data, http) = try await send(request("GET", "notifications", query: [
                 URLQueryItem(name: "all", value: String(includeRead)),
                 URLQueryItem(name: "participating", value: String(participating)),
                 URLQueryItem(name: "per_page", value: String(Self.notificationsPageSize)),
                 URLQueryItem(name: "page", value: String(page)),
-            ])
+            ]))
+            let pageItems = try Self.decoder.decode([GHNotification].self, from: data)
+            if serverPollInterval == nil {
+                serverPollInterval = http.value(forHTTPHeaderField: "X-Poll-Interval")
+                    .flatMap(TimeInterval.init)
+            }
             all.append(contentsOf: pageItems)
             if !fetchAll || pageItems.count < Self.notificationsPageSize { break }
             page += 1
         }
-        return all
+        return (all, serverPollInterval)
     }
 
     func markThreadRead(id: String) async throws {

@@ -112,6 +112,9 @@ final class NotificationsStore: ObservableObject {
     private let settings: SettingsStore
     let filters: FiltersStore
     private var pollTask: Task<Void, Never>?
+    /// Server-recommended minimum poll interval per account id
+    /// (X-Poll-Interval header, upstream pollInterval.ts).
+    private var serverPollIntervals: [String: TimeInterval] = [:]
     /// Unread ids already announced, per account id. Errored accounts keep
     /// their previous set so a transient failure doesn't re-announce every
     /// notification once the account recovers.
@@ -133,10 +136,20 @@ final class NotificationsStore: ObservableObject {
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.fetch()
-                let interval = await self?.settings.fetchInterval ?? 60
-                try? await Task.sleep(for: .seconds(max(60, interval)))
+                let interval = await self?.effectivePollInterval ?? 60
+                try? await Task.sleep(for: .seconds(interval))
             }
         }
+    }
+
+    /// The user's interval stretched to the slowest server-recommended
+    /// minimum across current accounts, so polling never runs faster than
+    /// GitHub allows (upstream computeRefetchIntervalMs).
+    private var effectivePollInterval: TimeInterval {
+        let serverMinimum = accountsStore.accounts
+            .compactMap { serverPollIntervals[$0.id] }
+            .max() ?? 0
+        return max(60, settings.fetchInterval, serverMinimum)
     }
 
     func stopPolling() {
@@ -166,11 +179,14 @@ final class NotificationsStore: ObservableObject {
         for account in accountsStore.accounts {
             guard let client = accountsStore.client(for: account) else { continue }
             do {
-                let items = try await client.notifications(
+                let (items, serverPollInterval) = try await client.notifications(
                     participating: settings.participating,
                     includeRead: settings.fetchReadNotifications,
                     fetchAll: settings.fetchAllNotifications
                 )
+                if let serverPollInterval, serverPollInterval > 0 {
+                    serverPollIntervals[account.id] = serverPollInterval
+                }
                 newGroups.append(AccountNotifications(account: account, notifications: items))
             } catch {
                 newGroups.append(AccountNotifications(
