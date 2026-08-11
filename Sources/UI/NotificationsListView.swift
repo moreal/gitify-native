@@ -139,13 +139,7 @@ struct NotificationsListView: View {
 
     private func accountHeader(_ account: Account, hasError: Bool) -> some View {
         HStack(spacing: 8) {
-            AsyncImage(url: URL(string: account.user.avatarUrl)) { image in
-                image.resizable()
-            } placeholder: {
-                Image(systemName: "person.crop.circle")
-            }
-            .frame(width: 16, height: 16)
-            .clipShape(Circle())
+            AvatarView(url: URL(string: account.user.avatarUrl), size: 16)
             Text("@\(account.user.login)")
                 .font(.subheadline.bold())
             Text(account.hostname)
@@ -282,9 +276,12 @@ struct NotificationRow: View {
                 Text(notification.subject.title)
                     .font(.callout)
                     .lineLimit(2)
-                Text(captionText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    authorAvatar
+                    Text(captionText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer(minLength: 4)
             // Keep the buttons visible while a failure is shown so the danger
@@ -349,6 +346,49 @@ struct NotificationRow: View {
             } else {
                 await notificationsStore.markRead(notification, account: account)
             }
+        }
+    }
+
+    /// Display-user avatar opening their profile; a user-type glyph when
+    /// enrichment gave no avatar (upstream NotificationFooter's avatar).
+    @ViewBuilder
+    private var authorAvatar: some View {
+        if let user = detail?.user {
+            Button {
+                let url = user.htmlUrl.flatMap(URL.init(string:))
+                    ?? account.webBaseURL.appending(path: user.login)
+                NSWorkspace.shared.open(url)
+            } label: {
+                AvatarView(
+                    url: user.avatarUrl.flatMap(URL.init(string:)),
+                    size: 14,
+                    fallbackSymbol: userTypeSymbol
+                )
+            }
+            // .plain, not .borderless: borderless accent-tints image labels.
+            .buttonStyle(.plain)
+            .help(user.login)
+            .accessibilityLabel("Open \(user.login)'s profile")
+            .accessibilityIdentifier("notification-view-profile")
+        } else {
+            AvatarView(url: nil, size: 14, fallbackSymbol: userTypeSymbol)
+        }
+    }
+
+    /// Glyph for the display user; without one, CI subjects read as bots
+    /// (upstream display.defaultUserType).
+    private var userTypeSymbol: String {
+        switch detail?.user?.type {
+        case "Bot": return "gearshape.circle"
+        case "Organization": return "building.2.crop.circle"
+        case nil:
+            switch notification.subject.type {
+            case .checkSuite, .workflowRun, .repositoryDependabotAlertsThread:
+                return "gearshape.circle"
+            default:
+                return "person.crop.circle"
+            }
+        default: return "person.crop.circle"
         }
     }
 

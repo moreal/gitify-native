@@ -115,7 +115,7 @@ Upstream reference: `src/renderer/utils/notifications/pollInterval.ts`,
 
 ## 7. Notification list UI
 
-- [ ] (commit 1) Row author avatars (from enriched author; fall back to type icon),
+- [x] (commit 1) Row author avatars (from enriched author; fall back to type icon),
       click → open the author's profile. Requires enrichment to also capture `avatar_url`.
 - [ ] (commit 2) Repository header: owner avatar + make the repo name a button that
       opens the repository in the browser.

@@ -35,8 +35,22 @@ struct SubjectDetail: Equatable {
     var authorType: String?
     /// Display user for avatars and profile links: the latest commenter when
     /// the notification points at a comment, else the author (upstream subject.user).
-    var userLogin: String?
-    var userAvatarUrl: String?
+    var user: DisplayUser?
+
+    struct DisplayUser: Equatable {
+        let login: String
+        var avatarUrl: String?
+        var htmlUrl: String?
+        var type: String?
+
+        init?(json: [String: Any]) {
+            guard let login = json["login"] as? String else { return nil }
+            self.login = login
+            avatarUrl = json["avatar_url"] as? String
+            htmlUrl = json["html_url"] as? String
+            type = json["type"] as? String
+        }
+    }
 
     static func parse(json: [String: Any], type: SubjectType) -> SubjectDetail {
         var detail = SubjectDetail(
@@ -49,8 +63,7 @@ struct SubjectDetail: Equatable {
         if let user = json["user"] as? [String: Any] ?? json["author"] as? [String: Any] {
             detail.author = user["login"] as? String
             detail.authorType = user["type"] as? String
-            detail.userLogin = detail.author
-            detail.userAvatarUrl = user["avatar_url"] as? String
+            detail.user = DisplayUser(json: user)
         }
         switch type {
         case .pullRequest:
@@ -90,9 +103,8 @@ struct SubjectDetail: Equatable {
     /// the display user (upstream commit.ts: user = commenter ?? author).
     mutating func applyLatestComment(json: [String: Any]) {
         htmlUrl = json["html_url"] as? String ?? htmlUrl
-        if let user = json["user"] as? [String: Any] {
-            userLogin = user["login"] as? String
-            userAvatarUrl = user["avatar_url"] as? String
+        if let commenter = (json["user"] as? [String: Any]).flatMap(DisplayUser.init(json:)) {
+            user = commenter
         }
     }
 
