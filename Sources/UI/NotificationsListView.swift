@@ -386,7 +386,7 @@ struct NotificationRow: View {
                 .padding(.top, 2)
                 .help(notification.subject.type.rawValue)
             VStack(alignment: .leading, spacing: 2) {
-                Text(notification.subject.title)
+                Text(Self.attributedTitle(notification.subject.title))
                     .font(.callout)
                     .lineLimit(2)
                 HStack(spacing: 4) {
@@ -460,6 +460,29 @@ struct NotificationRow: View {
                 await notificationsStore.markRead(notification, account: account)
             }
         }
+    }
+
+    /// Renders `backtick`-wrapped title segments as monospace chips
+    /// (upstream NotificationTitle + parseInlineCode). Unpaired trailing
+    /// backticks are dropped like upstream; empty pairs differ only in
+    /// which side of an adjacent chip they attach to.
+    private static func attributedTitle(_ title: String) -> AttributedString {
+        guard title.contains("`") else { return AttributedString(title) }
+        var result = AttributedString()
+        let segments = title.components(separatedBy: "`")
+        for (index, segment) in segments.enumerated() where !segment.isEmpty {
+            // Odd segments sat between backticks; the last one only counts
+            // as code if its closing backtick existed.
+            let isCode = !index.isMultiple(of: 2) && index < segments.count - 1
+            var part = AttributedString(segment)
+            if isCode {
+                part.font = .system(.caption, design: .monospaced)
+                part.backgroundColor = Color(nsColor: .quaternarySystemFill)
+            }
+            result += part
+        }
+        // An all-backtick title must not vanish (upstream's no-match fallback).
+        return result.characters.isEmpty ? AttributedString(title) : result
     }
 
     /// Display-user avatar opening their profile; a user-type glyph when
