@@ -121,7 +121,7 @@ Upstream reference: `src/renderer/utils/notifications/pollInterval.ts`,
       opens the repository in the browser.
 - [x] (commit 3) Collapse/expand per repository section (chevron, matching upstream's
       click-to-collapse header), and per account section when account headers show.
-- [ ] (commit 4) Account header extras: avatar click → profile; hover quick-links
+- [x] (commit 4) Account header extras: avatar click → profile; hover quick-links
       "My issues" and "My pull requests" opening the host pages.
 - [ ] (commit 5) Render backtick-wrapped title segments as monospace chips.
 - [ ] (commit 6) `wrapNotificationTitle` setting (default false): off = 1-line

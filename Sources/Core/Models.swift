@@ -113,4 +113,9 @@ struct Account: Codable, Identifiable, Equatable {
     var webBaseURL: URL {
         URL(string: "https://\(hostname)")!
     }
+
+    /// The signed-in user's profile page.
+    var profileURL: URL {
+        URL(string: user.htmlUrl) ?? webBaseURL.appending(path: user.login)
+    }
 }

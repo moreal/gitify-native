@@ -92,10 +92,11 @@ struct NotificationsListView: View {
                             let isAccountCollapsed = showAccountHeaders
                                 && collapsedAccounts.contains(group.id)
                             if showAccountHeaders {
-                                accountHeader(
-                                    group.account,
+                                AccountHeader(
+                                    account: group.account,
                                     hasError: group.error != nil,
-                                    isCollapsed: isAccountCollapsed
+                                    isCollapsed: isAccountCollapsed,
+                                    onToggleCollapse: { collapsedAccounts.toggle(group.id) }
                                 )
                             }
                             if !isAccountCollapsed {
@@ -158,47 +159,6 @@ struct NotificationsListView: View {
         }
     }
 
-    // MARK: - Headers
-
-    private func accountHeader(_ account: Account, hasError: Bool, isCollapsed: Bool) -> some View {
-        let toggle = { collapsedAccounts.toggle(account.id) }
-        return HStack(spacing: 8) {
-            AvatarView(url: URL(string: account.user.avatarUrl), size: 16)
-            Text("@\(account.user.login)")
-                .font(.subheadline.bold())
-            Text(account.hostname)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer()
-            collapseToggle(isCollapsed: isCollapsed, label: "@\(account.user.login)", action: toggle)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(
-            hasError
-                ? Color(nsColor: .systemRed).opacity(0.12)
-                : Color.accentColor.opacity(0.08)
-        )
-        .contentShape(Rectangle())
-        .onTapGesture(perform: toggle)
-    }
-
-    /// Chevron button toggling a collapsible section — the accessible
-    /// control; the header row's tap gesture mirrors it for mouse users.
-    private func collapseToggle(
-        isCollapsed: Bool,
-        label: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
-                .font(.caption2.bold())
-                .foregroundStyle(.secondary)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(isCollapsed ? "Show" : "Hide") notifications for \(label)")
-    }
-
     /// Compact in-section error for one failing account, so other accounts'
     /// notifications stay visible (upstream AccountNotifications error block).
     private func inlineErrorBlock(_ error: FetchError) -> some View {
@@ -221,6 +181,8 @@ struct NotificationsListView: View {
         .padding(16)
         .frame(maxWidth: .infinity)
     }
+
+    // MARK: - Headers
 
     private func repoHeader(
         _ repository: GHNotification.Repository,
@@ -256,7 +218,7 @@ struct NotificationsListView: View {
             }
             .buttonStyle(.borderless)
             .help("Mark repository as read")
-            collapseToggle(
+            sectionCollapseToggle(
                 isCollapsed: isCollapsed,
                 label: repository.fullName,
                 action: onToggleCollapse
@@ -316,6 +278,86 @@ private extension Set {
     /// Membership toggle for the collapse sets.
     mutating func toggle(_ member: Element) {
         if !insert(member).inserted { remove(member) }
+    }
+}
+
+/// Chevron button toggling a collapsible section — the accessible control;
+/// the header row's tap gesture mirrors it for mouse users.
+private func sectionCollapseToggle(
+    isCollapsed: Bool,
+    label: String,
+    action: @escaping () -> Void
+) -> some View {
+    Button(action: action) {
+        Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
+            .font(.caption2.bold())
+            .foregroundStyle(.secondary)
+    }
+    .buttonStyle(.plain)
+    .accessibilityLabel("\(isCollapsed ? "Show" : "Hide") notifications for \(label)")
+}
+
+/// Account section header: profile-opening avatar, hover quick-links to the
+/// host's My issues / My pull requests pages, and the collapse chevron
+/// (upstream AccountNotifications header).
+private struct AccountHeader: View {
+    let account: Account
+    let hasError: Bool
+    let isCollapsed: Bool
+    let onToggleCollapse: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button {
+                NSWorkspace.shared.open(account.profileURL)
+            } label: {
+                AvatarView(url: URL(string: account.user.avatarUrl), size: 16)
+            }
+            .buttonStyle(.plain)
+            .help("Open account profile")
+            .accessibilityLabel("Open @\(account.user.login)'s profile")
+            Text("@\(account.user.login)")
+                .font(.subheadline.bold())
+            Text(account.hostname)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            // Stay mounted, fade on hover: inserting them would reflow the
+            // header on every hover-in/out (upstream HoverGroup overlays).
+            HStack(spacing: 6) {
+                quickLink("My issues", icon: "smallcircle.filled.circle", path: "issues")
+                quickLink("My pull requests", icon: "arrow.triangle.pull", path: "pulls")
+            }
+            .opacity(isHovered ? 1 : 0)
+            .allowsHitTesting(isHovered)
+            sectionCollapseToggle(
+                isCollapsed: isCollapsed,
+                label: "@\(account.user.login)",
+                action: onToggleCollapse
+            )
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            hasError
+                ? Color(nsColor: .systemRed).opacity(0.12)
+                : Color.accentColor.opacity(0.08)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onToggleCollapse)
+        .onHover { isHovered = $0 }
+    }
+
+    private func quickLink(_ help: String, icon: String, path: String) -> some View {
+        Button {
+            NSWorkspace.shared.open(account.webBaseURL.appending(path: path))
+        } label: {
+            Image(systemName: icon)
+        }
+        .buttonStyle(.borderless)
+        .help(help)
+        .accessibilityLabel(help)
     }
 }
 
