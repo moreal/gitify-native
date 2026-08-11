@@ -34,10 +34,7 @@ final class AccountsStore: ObservableObject {
     /// Validates the token against /user, then persists the account.
     @discardableResult
     func addAccount(token: String, hostname: String, method: Account.AuthMethod) async throws -> Account {
-        let baseURL = hostname == "github.com"
-            ? URL(string: "https://api.github.com")!
-            : URL(string: "https://\(hostname)/api/v3")!
-        let client = GitHubClient(baseURL: baseURL, token: token)
+        let client = GitHubClient(baseURL: Account.apiBaseURL(for: hostname), token: token)
         let (user, scopes) = try await client.authenticatedUser()
         let account = Account(user: user, hostname: hostname, authMethod: method, scopes: scopes)
         try Keychain.setToken(token, for: account.id)

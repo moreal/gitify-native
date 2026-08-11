@@ -105,9 +105,21 @@ struct Account: Codable, Identifiable, Equatable {
     }
 
     var apiBaseURL: URL {
-        hostname == "github.com"
-            ? URL(string: "https://api.github.com")!
-            : URL(string: "https://\(hostname)/api/v3")!
+        Self.apiBaseURL(for: hostname)
+    }
+
+    /// github.com → api.github.com; GitHub Enterprise Cloud with data
+    /// residency (*.ghe.com) → api.<hostname>; GHES → <hostname>/api/v3
+    /// (upstream getGitHubAPIBaseUrl). Device flow endpoints always live on
+    /// the hostname itself.
+    static func apiBaseURL(for hostname: String) -> URL {
+        if hostname == "github.com" {
+            return URL(string: "https://api.github.com")!
+        }
+        if hostname.hasSuffix(".ghe.com") {
+            return URL(string: "https://api.\(hostname)")!
+        }
+        return URL(string: "https://\(hostname)/api/v3")!
     }
 
     var webBaseURL: URL {

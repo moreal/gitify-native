@@ -142,7 +142,7 @@ Upstream reference: `src/renderer/components/settings/{SettingsReset,SettingsFoo
 
 ## 9. GitHub Enterprise Cloud data residency (`*.ghe.com`)
 
-- [ ] Detect hostnames ending in `.ghe.com` and use `https://api.<hostname>/` as the
+- [x] Detect hostnames ending in `.ghe.com` and use `https://api.<hostname>/` as the
       API base (device flow endpoints stay on `https://<hostname>/`). Today
       `Sources/Core/Models.swift` treats them as GHES (`https://<hostname>/api/v3`),
       which is wrong for these hosts.
