@@ -531,7 +531,7 @@ struct NotificationRow: View {
     private var captionText: String {
         var parts: [String] = []
         if showRepo { parts.append(notification.repository.fullName) }
-        if let number = detail?.number { parts.append("#\(number)") }
+        if settings.showNumber, let number = detail?.number { parts.append("#\(number)") }
         parts.append(ReasonLabel.title(for: notification.reason))
         parts.append(notification.updatedAt.formatted(.relative(presentation: .named)))
         return parts.joined(separator: " · ")

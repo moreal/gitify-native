@@ -33,6 +33,7 @@ struct SettingsView: View {
                     }
                     Toggle("Always show account header", isOn: $settings.showAccountHeader)
                     Toggle("Wrap notification titles", isOn: $settings.wrapNotificationTitle)
+                    Toggle("Show issue/PR numbers", isOn: $settings.showNumber)
                 }
                 Section("Notifications") {
                     Toggle("Only participating", isOn: $settings.participating)

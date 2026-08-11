@@ -68,6 +68,8 @@ final class SettingsStore: ObservableObject {
     @Published var showAccountHeader: Bool { didSet { save() } }
     /// Wrap notification titles fully; off truncates to one line.
     @Published var wrapNotificationTitle: Bool { didSet { save() } }
+    /// Show the #number in row captions (requires detailed notifications).
+    @Published var showNumber: Bool { didSet { save() } }
 
     static let defaultOAuthClientID = "Ov23liQIkFs5ehQLNzHF"
 
@@ -102,6 +104,7 @@ final class SettingsStore: ObservableObject {
         groupBy = GroupBy(rawValue: defaults.string(forKey: "groupBy") ?? "") ?? .repository
         showAccountHeader = defaults.object(forKey: "showAccountHeader") as? Bool ?? false
         wrapNotificationTitle = defaults.object(forKey: "wrapNotificationTitle") as? Bool ?? false
+        showNumber = defaults.object(forKey: "showNumber") as? Bool ?? true
     }
 
     private func save() {
@@ -128,5 +131,6 @@ final class SettingsStore: ObservableObject {
         defaults.set(groupBy.rawValue, forKey: "groupBy")
         defaults.set(showAccountHeader, forKey: "showAccountHeader")
         defaults.set(wrapNotificationTitle, forKey: "wrapNotificationTitle")
+        defaults.set(showNumber, forKey: "showNumber")
     }
 }
