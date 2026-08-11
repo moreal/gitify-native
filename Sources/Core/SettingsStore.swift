@@ -107,6 +107,35 @@ final class SettingsStore: ObservableObject {
         showNumber = defaults.object(forKey: "showNumber") as? Bool ?? true
     }
 
+    /// Restores every setting to its default (the same values init falls back
+    /// to when nothing is persisted). Accounts and filters are untouched.
+    func reset() {
+        participating = false
+        fetchReadNotifications = false
+        fetchAllNotifications = true
+        detailedNotifications = true
+        markAsDoneOnOpen = false
+        markAsDoneOnUnsubscribe = false
+        showNotificationBanners = true
+        playSound = true
+        notificationVolume = 20
+        showCountInTray = true
+        useUnreadActiveIcon = true
+        useAlternateIdleIcon = false
+        openAtStartup = false
+        keyboardShortcut = true
+        openGitifyShortcut = .default
+        hotKeyError = nil
+        fetchInterval = 60
+        oauthClientID = Self.defaultOAuthClientID
+        theme = .system
+        colorMode = .normal
+        groupBy = .repository
+        showAccountHeader = false
+        wrapNotificationTitle = false
+        showNumber = true
+    }
+
     private func save() {
         defaults.set(participating, forKey: "participating")
         defaults.set(fetchReadNotifications, forKey: "fetchReadNotifications")

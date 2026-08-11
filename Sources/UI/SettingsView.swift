@@ -1,6 +1,5 @@
 import SwiftUI
 import Carbon.HIToolbox
-import ServiceManagement
 
 struct SettingsView: View {
     @EnvironmentObject private var settings: SettingsStore
@@ -10,6 +9,7 @@ struct SettingsView: View {
     let onAddAccount: () -> Void
 
     @StateObject private var shortcutRecorder = ShortcutRecorder()
+    @State private var isConfirmingReset = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -57,7 +57,6 @@ struct SettingsView: View {
                     Toggle("Show count in menu bar", isOn: $settings.showCountInTray)
                     Toggle("Green icon when unread", isOn: $settings.useUnreadActiveIcon)
                     Toggle("White idle icon", isOn: $settings.useAlternateIdleIcon)
-                        .onChange(of: settings.useAlternateIdleIcon) { _, _ in refreshTray() }
                     Toggle("Global shortcut", isOn: $settings.keyboardShortcut)
                         .onChange(of: settings.keyboardShortcut) { _, _ in shortcutRecorder.stop() }
                     if settings.keyboardShortcut {
@@ -74,9 +73,6 @@ struct SettingsView: View {
                             .foregroundStyle(Color(nsColor: .systemRed))
                     }
                     Toggle("Open at login", isOn: $settings.openAtStartup)
-                        .onChange(of: settings.openAtStartup) { _, enabled in
-                            updateLoginItem(enabled: enabled)
-                        }
                 }
                 Section("Accounts") {
                     ForEach(accountsStore.accounts) { account in
@@ -96,6 +92,17 @@ struct SettingsView: View {
                     }
                     Button("Add account", action: onAddAccount)
                 }
+                Section {
+                    Button("Reset settings…", role: .destructive) {
+                        isConfirmingReset = true
+                    }
+                }
+            }
+            .alert("Reset settings?", isPresented: $isConfirmingReset) {
+                Button("Reset", role: .destructive) { settings.reset() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("All settings return to their defaults. Accounts and filters are kept.")
             }
             .formStyle(.grouped)
             // Drop the grouped form's opaque backdrop so the popover material
@@ -103,12 +110,29 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
         }
         .onDisappear { shortcutRecorder.stop() }
-        .onChange(of: settings.participating) { _, _ in refetch() }
-        .onChange(of: settings.fetchReadNotifications) { _, _ in refetch() }
-        .onChange(of: settings.fetchAllNotifications) { _, _ in refetch() }
-        .onChange(of: settings.detailedNotifications) { _, _ in refetch() }
-        .onChange(of: settings.showCountInTray) { _, _ in refreshTray() }
-        .onChange(of: settings.useUnreadActiveIcon) { _, _ in refreshTray() }
+        // Coalesced so a settings reset flipping several at once refetches
+        // (or refreshes the tray) exactly once.
+        .onChange(of: fetchInputs) { _, _ in refetch() }
+        .onChange(of: trayInputs) { _, _ in refreshTray() }
+    }
+
+    /// Settings whose change requires refetching notifications.
+    private var fetchInputs: [Bool] {
+        [
+            settings.participating,
+            settings.fetchReadNotifications,
+            settings.fetchAllNotifications,
+            settings.detailedNotifications,
+        ]
+    }
+
+    /// Settings whose change requires re-rendering the tray icon.
+    private var trayInputs: [Bool] {
+        [
+            settings.showCountInTray,
+            settings.useUnreadActiveIcon,
+            settings.useAlternateIdleIcon,
+        ]
     }
 
     private func refetch() {
@@ -126,18 +150,6 @@ struct SettingsView: View {
 
     private func refreshTray() {
         notificationsStore.notifyStateChange()
-    }
-
-    private func updateLoginItem(enabled: Bool) {
-        do {
-            if enabled {
-                try SMAppService.mainApp.register()
-            } else {
-                try SMAppService.mainApp.unregister()
-            }
-        } catch {
-            NSLog("Failed to update login item: \(error)")
-        }
     }
 }
 

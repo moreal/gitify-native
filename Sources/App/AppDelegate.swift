@@ -2,6 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 import Combine
 import Network
+import ServiceManagement
 import UserNotifications
 
 @main
@@ -49,6 +50,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         accountsObserver = accountsStore.$accounts.dropFirst().sink { [weak self] _ in
             Task { await self?.notificationsStore.fetch() }
         }
+
+        // Login-item registration must track the setting no matter which UI
+        // (a toggle, a settings reset) changes it.
+        loginItemObserver = settings.$openAtStartup
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] enabled in self?.updateLoginItem(enabled: enabled) }
 
         // Re-time the running poll loop when the interval changes. Debounced
         // so a click-held stepper coalesces into one restart, and without an
@@ -117,7 +125,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var lastWorkingAccelerator: HotKeyAccelerator?
     private var accountsObserver: AnyCancellable?
     private var fetchIntervalObserver: AnyCancellable?
+    private var loginItemObserver: AnyCancellable?
     private let pathMonitor = NWPathMonitor()
+
+    private func updateLoginItem(enabled: Bool) {
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            NSLog("Failed to update login item: \(error)")
+        }
+    }
 
     private func updateHotKey(enabled: Bool, accelerator: HotKeyAccelerator) {
         hotKey = nil // deinit unregisters the previous binding
