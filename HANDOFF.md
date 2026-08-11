@@ -152,7 +152,7 @@ Upstream reference: `src/renderer/utils/auth/platform.ts`,
 
 ## 10. Tray menu + full reset
 
-- [ ] Extend the status-item context menu (`Sources/App/StatusItemController.swift`):
+- [x] Extend the status-item context menu (`Sources/App/StatusItemController.swift`):
       "Open Gitify" (toggle popover), Refresh, separator, "Reset Gitify…" (confirmation
       alert; deletes all accounts + Keychain tokens, settings, filters, caches, then
       returns to the login screen), separator, Quit.

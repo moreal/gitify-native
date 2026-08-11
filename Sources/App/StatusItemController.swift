@@ -105,7 +105,10 @@ final class StatusItemController: NSObject {
 
     private func showContextMenu() {
         let menu = NSMenu()
+        menu.addItem(withTitle: "Open Gitify", action: #selector(openGitify), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Refresh", action: #selector(refresh), keyEquivalent: "r").target = self
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Reset Gitify…", action: #selector(confirmReset), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Gitify", action: #selector(quit), keyEquivalent: "q").target = self
         statusItem.menu = menu
@@ -113,8 +116,34 @@ final class StatusItemController: NSObject {
         statusItem.menu = nil // detach so left click keeps toggling the popover
     }
 
+    @objc private func openGitify() {
+        togglePopover()
+    }
+
     @objc private func refresh() {
         Task { await notificationsStore.fetch() }
+    }
+
+    /// Full reset (upstream main/lifecycle/reset.ts): confirmation, then
+    /// accounts + Keychain tokens, settings, filters, and caches are wiped
+    /// and the popover reopens on the sign-in screen.
+    @objc private func confirmReset() {
+        let alert = NSAlert()
+        alert.messageText = "Reset Gitify?"
+        alert.informativeText = "Removes all accounts (including their Keychain tokens), settings, filters, and caches. Gitify returns to the sign-in screen."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Reset").hasDestructiveAction = true
+        alert.addButton(withTitle: "Cancel")
+        NSApp.activate()
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        accountsStore.removeAllAccounts()
+        settings.reset()
+        notificationsStore.filters.reset()
+        notificationsStore.resetState()
+        if !popover.isShown {
+            togglePopover()
+        }
     }
 
     @objc private func quit() {

@@ -169,6 +169,18 @@ final class NotificationsStore: ObservableObject {
         onStateChange?()
     }
 
+    /// Drops every cache and in-memory state (full app reset).
+    func resetState() {
+        groups = []
+        details = [:]
+        detailCache = [:]
+        seenIDs = [:]
+        actionFailures = [:]
+        serverPollIntervals = [:]
+        hasFetchedOnce = false
+        onStateChange?()
+    }
+
     func fetch() async {
         guard isOnline else { return }
         guard accountsStore.isAuthenticated else {
@@ -202,6 +214,13 @@ final class NotificationsStore: ObservableObject {
                     error: FetchError(error)
                 ))
             }
+        }
+
+        // A reset may have signed everyone out while this fetch was in
+        // flight; its results describe accounts that no longer exist.
+        guard accountsStore.isAuthenticated else {
+            groups = []
+            return
         }
 
         groups = newGroups

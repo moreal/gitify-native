@@ -50,6 +50,13 @@ final class AccountsStore: ObservableObject {
         persist()
     }
 
+    /// Signs out every account (tokens included) in a single publish.
+    func removeAllAccounts() {
+        accounts.forEach { Keychain.deleteToken(for: $0.id) }
+        accounts = []
+        persist()
+    }
+
     private func persist() {
         defaults.set(try? JSONEncoder().encode(accounts), forKey: Self.storageKey)
     }
