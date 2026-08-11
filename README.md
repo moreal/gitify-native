@@ -47,7 +47,7 @@ If any secret is missing, the workflow falls back to ad-hoc signing.
 - Menu bar popover with GitHub notifications, grouped by repository or date
 - Sign in with a Personal Access Token or the GitHub Device Flow
 - Tokens stored in the macOS Keychain; multiple accounts with per-account sections
-- PR / Issue / Discussion state enrichment (colored icons, numbers) with request caching
+- PR / Issue / Discussion / Commit / Release subject enrichment (colored icons, numbers, authors) with request caching
 - Filters: subject type, state, reason, author type, and `org:` / `repo:` / `author:` search tokens (include & exclude)
 - Mark as read / done, unsubscribe, mark repository as read
 - Native notification banners with click-through, optional sound with volume control

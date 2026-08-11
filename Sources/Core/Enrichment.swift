@@ -45,7 +45,7 @@ struct SubjectDetail: Equatable {
             state: nil
         )
         // PR/Issue/Discussion JSON carries the user under "user";
-        // commit JSON under "author".
+        // commit and release JSON under "author".
         if let user = json["user"] as? [String: Any] ?? json["author"] as? [String: Any] {
             detail.author = user["login"] as? String
             detail.authorType = user["type"] as? String

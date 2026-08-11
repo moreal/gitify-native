@@ -199,9 +199,9 @@ final class NotificationsStore: ObservableObject {
 
     // MARK: - Enrichment
 
-    /// Fetches PR/Issue/Discussion/Commit subject detail for state-colored
-    /// icons, numbers, and author/display-user data. Cached by enrichment URL
-    /// + updatedAt so steady-state polls cost no extra requests.
+    /// Fetches subject detail (state, number, author/display-user) for the
+    /// API-enriched subject types — see enrichmentURL. Cached by enrichment
+    /// URL + updatedAt so steady-state polls cost no extra requests.
     private func enrich(_ groups: [AccountNotifications]) async {
         var work: [(
             id: String, url: URL, commentURL: URL?, cacheKey: String,
@@ -290,7 +290,7 @@ final class NotificationsStore: ObservableObject {
     /// types that aren't enriched from the API.
     private static func enrichmentURL(for item: GHNotification) -> String? {
         switch item.subject.type {
-        case .pullRequest, .issue, .discussion, .commit:
+        case .pullRequest, .issue, .discussion, .commit, .release:
             return item.subject.url
         default:
             return nil
