@@ -1,4 +1,5 @@
 import SwiftUI
+import Carbon.HIToolbox
 import ServiceManagement
 
 struct SettingsView: View {
@@ -7,6 +8,8 @@ struct SettingsView: View {
     @EnvironmentObject private var notificationsStore: NotificationsStore
     let onClose: () -> Void
     let onAddAccount: () -> Void
+
+    @StateObject private var shortcutRecorder = ShortcutRecorder()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -55,7 +58,21 @@ struct SettingsView: View {
                     Toggle("Green icon when unread", isOn: $settings.useUnreadActiveIcon)
                     Toggle("White idle icon", isOn: $settings.useAlternateIdleIcon)
                         .onChange(of: settings.useAlternateIdleIcon) { _, _ in refreshTray() }
-                    Toggle("Global shortcut (⌘⇧G)", isOn: $settings.keyboardShortcut)
+                    Toggle("Global shortcut", isOn: $settings.keyboardShortcut)
+                        .onChange(of: settings.keyboardShortcut) { _, _ in shortcutRecorder.stop() }
+                    if settings.keyboardShortcut {
+                        LabeledContent("Shortcut") {
+                            Button(shortcutRecorder.isRecording ? "Press ⌘ + key… (Esc cancels)"
+                                                                : settings.openGitifyShortcut.display) {
+                                toggleShortcutRecording()
+                            }
+                        }
+                    }
+                    if let error = settings.hotKeyError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(Color(nsColor: .systemRed))
+                    }
                     Toggle("Open at login", isOn: $settings.openAtStartup)
                         .onChange(of: settings.openAtStartup) { _, enabled in
                             updateLoginItem(enabled: enabled)
@@ -85,6 +102,7 @@ struct SettingsView: View {
             // shows through, matching the notifications list surface.
             .scrollContentBackground(.hidden)
         }
+        .onDisappear { shortcutRecorder.stop() }
         .onChange(of: settings.participating) { _, _ in refetch() }
         .onChange(of: settings.fetchReadNotifications) { _, _ in refetch() }
         .onChange(of: settings.detailedNotifications) { _, _ in refetch() }
@@ -94,6 +112,15 @@ struct SettingsView: View {
 
     private func refetch() {
         Task { await notificationsStore.fetch() }
+    }
+
+    private func toggleShortcutRecording() {
+        if shortcutRecorder.isRecording {
+            shortcutRecorder.stop()
+        } else {
+            settings.hotKeyError = nil
+            shortcutRecorder.start { settings.openGitifyShortcut = $0 }
+        }
     }
 
     private func refreshTray() {
@@ -110,5 +137,49 @@ struct SettingsView: View {
         } catch {
             NSLog("Failed to update login item: \(error)")
         }
+    }
+}
+
+/// Owns the local key monitor that captures a new accelerator
+/// (upstream SystemSettings.tsx live recorder). A class so the monitor token
+/// has a single unambiguous owner and teardown spot.
+@MainActor
+final class ShortcutRecorder: ObservableObject {
+    @Published private(set) var isRecording = false
+    private var monitor: Any?
+
+    func start(onCapture: @escaping (HotKeyAccelerator) -> Void) {
+        guard monitor == nil else { return }
+        isRecording = true
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == UInt16(kVK_Escape) {
+                self?.stop()
+            } else if let accelerator = HotKeyAccelerator(event: event) {
+                onCapture(accelerator)
+                self?.stop()
+            }
+            return nil // swallow keystrokes while recording
+        }
+    }
+
+    func stop() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+        isRecording = false
+    }
+}
+
+extension HotKeyAccelerator {
+    /// Builds from a recorder key event; nil unless ⌘ is held (the recorder
+    /// requires ⌘ plus a non-modifier key — pure modifier presses never
+    /// produce keyDown events, so ⌘ presence is the only check needed).
+    init?(event: NSEvent) {
+        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        guard flags.contains(.command) else { return nil }
+        var mods = UInt32(cmdKey)
+        if flags.contains(.shift) { mods |= UInt32(shiftKey) }
+        if flags.contains(.option) { mods |= UInt32(optionKey) }
+        if flags.contains(.control) { mods |= UInt32(controlKey) }
+        self.init(keyCode: UInt32(event.keyCode), modifiers: mods)
     }
 }

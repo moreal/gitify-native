@@ -75,12 +75,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
         }
 
-        // Fires immediately with the stored value, registering at launch.
+        // Fires immediately with the stored values, registering at launch.
         // removeDuplicates: a live global hotkey should not be torn down and
         // re-registered by same-value settings writes.
-        hotKeyObserver = settings.$keyboardShortcut.removeDuplicates().sink { [weak self] enabled in
-            self?.updateHotKey(enabled: enabled)
-        }
+        hotKeyObserver = settings.$keyboardShortcut
+            .combineLatest(settings.$openGitifyShortcut)
+            .removeDuplicates(by: ==)
+            .sink { [weak self] enabled, accelerator in
+                self?.updateHotKey(enabled: enabled, accelerator: accelerator)
+            }
 
         notificationsStore.startPolling()
 
@@ -98,14 +101,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var hotKey: GlobalHotKey?
     private var hotKeyObserver: AnyCancellable?
+    /// Last accelerator that registered successfully — the revert target when
+    /// a newly recorded one is rejected by RegisterEventHotKey.
+    private var lastWorkingAccelerator: HotKeyAccelerator?
     private var accountsObserver: AnyCancellable?
     private let pathMonitor = NWPathMonitor()
 
-    private func updateHotKey(enabled: Bool) {
+    private func updateHotKey(enabled: Bool, accelerator: HotKeyAccelerator) {
         hotKey = nil // deinit unregisters the previous binding
         guard enabled else { return }
-        hotKey = GlobalHotKey(keyCode: UInt32(kVK_ANSI_G), modifiers: UInt32(cmdKey | shiftKey)) { [weak self] in
+        hotKey = GlobalHotKey(accelerator: accelerator) { [weak self] in
             self?.statusItemController.togglePopover()
+        }
+        if hotKey != nil {
+            lastWorkingAccelerator = accelerator
+            if settings.hotKeyError != nil { settings.hotKeyError = nil }
+            return
+        }
+        // Registration failed (typically taken by another app): surface the
+        // error and revert. Deferred so the settings write doesn't re-enter
+        // the observer mid-emission; removeDuplicates breaks any revert loop.
+        let fallback = lastWorkingAccelerator ?? .default
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            settings.hotKeyError = "Couldn't register \(accelerator.display) — it may be in use by another app."
+            if fallback == accelerator {
+                // No known-good binding to fall back to; stop claiming one.
+                settings.keyboardShortcut = false
+            } else {
+                settings.openGitifyShortcut = fallback
+            }
         }
     }
 

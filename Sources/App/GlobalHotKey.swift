@@ -1,12 +1,16 @@
 import AppKit
 import Carbon.HIToolbox
 
-/// Registers a system-wide hotkey via Carbon (no accessibility permission needed).
-/// Default binding mirrors Gitify's CommandOrControl+Shift+G.
+/// Registers a system-wide hotkey via Carbon (no accessibility permission
+/// needed). The binding comes from settings (HotKeyAccelerator, default ⌘⇧G).
 final class GlobalHotKey {
     private var hotKeyRef: EventHotKeyRef?
     private var handlerRef: EventHandlerRef?
     private let callback: () -> Void
+
+    convenience init?(accelerator: HotKeyAccelerator, callback: @escaping () -> Void) {
+        self.init(keyCode: accelerator.keyCode, modifiers: accelerator.modifiers, callback: callback)
+    }
 
     init?(keyCode: UInt32, modifiers: UInt32, callback: @escaping () -> Void) {
         self.callback = callback

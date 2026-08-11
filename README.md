@@ -51,7 +51,7 @@ If any secret is missing, the workflow falls back to ad-hoc signing.
 - Filters: subject type, state, reason, author type, and `org:` / `repo:` / `author:` search tokens (include & exclude)
 - Mark as read / done, unsubscribe, mark repository as read
 - Native notification banners with click-through, optional sound with volume control
-- Launch at login, ⌘⇧G global hotkey, system-wake refresh, light/dark/system theme
+- Launch at login, configurable global hotkey (default ⌘⇧G), system-wake refresh, light/dark/system theme
 - GitHub Enterprise Server hostnames
 
 ## License

@@ -43,8 +43,12 @@ final class SettingsStore: ObservableObject {
     /// White idle icon instead of the template icon (for wallpaper-tinted menu bars).
     @Published var useAlternateIdleIcon: Bool { didSet { save() } }
     @Published var openAtStartup: Bool { didSet { save() } }
-    /// Global open-Gitify hotkey (⌘⇧G) enabled.
+    /// Global open-Gitify hotkey enabled.
     @Published var keyboardShortcut: Bool { didSet { save() } }
+    /// The open-Gitify accelerator (default ⌘⇧G).
+    @Published var openGitifyShortcut: HotKeyAccelerator { didSet { save() } }
+    /// Hotkey registration failure surfaced by the app delegate; not persisted.
+    @Published var hotKeyError: String?
     /// Polling interval in seconds. Gitify: default 60, min 60, max 3600.
     @Published var fetchInterval: TimeInterval { didSet { save() } }
     /// Device Flow OAuth client ID. Defaults to Gitify's public development client ID.
@@ -74,6 +78,12 @@ final class SettingsStore: ObservableObject {
         useAlternateIdleIcon = defaults.object(forKey: "useAlternateIdleIcon") as? Bool ?? false
         openAtStartup = defaults.object(forKey: "openAtStartup") as? Bool ?? false
         keyboardShortcut = defaults.object(forKey: "keyboardShortcut") as? Bool ?? true
+        if let keyCode = defaults.object(forKey: "openGitifyShortcut.keyCode") as? Int,
+           let modifiers = defaults.object(forKey: "openGitifyShortcut.modifiers") as? Int {
+            openGitifyShortcut = HotKeyAccelerator(keyCode: UInt32(keyCode), modifiers: UInt32(modifiers))
+        } else {
+            openGitifyShortcut = .default
+        }
         fetchInterval = max(60, defaults.object(forKey: "fetchInterval") as? TimeInterval ?? 60)
         oauthClientID = defaults.string(forKey: "oauthClientID") ?? Self.defaultOAuthClientID
         theme = AppTheme(rawValue: defaults.string(forKey: "theme") ?? "") ?? .system
@@ -96,6 +106,8 @@ final class SettingsStore: ObservableObject {
         defaults.set(useAlternateIdleIcon, forKey: "useAlternateIdleIcon")
         defaults.set(openAtStartup, forKey: "openAtStartup")
         defaults.set(keyboardShortcut, forKey: "keyboardShortcut")
+        defaults.set(Int(openGitifyShortcut.keyCode), forKey: "openGitifyShortcut.keyCode")
+        defaults.set(Int(openGitifyShortcut.modifiers), forKey: "openGitifyShortcut.modifiers")
         defaults.set(fetchInterval, forKey: "fetchInterval")
         defaults.set(oauthClientID, forKey: "oauthClientID")
         defaults.set(theme.rawValue, forKey: "theme")
