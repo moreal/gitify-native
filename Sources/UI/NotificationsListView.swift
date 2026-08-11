@@ -58,29 +58,37 @@ struct NotificationsListView: View {
 
     @ViewBuilder
     private var content: some View {
-        let visibleGroups = notificationsStore.filteredGroups
-        if let error = notificationsStore.lastError {
-            emptyState(icon: "exclamationmark.triangle", title: "Something went wrong", detail: error)
-        } else if visibleGroups.allSatisfy(\.notifications.isEmpty) {
+        if !notificationsStore.isOnline {
             emptyState(
-                icon: "checkmark.circle",
-                title: "All caught up!",
-                detail: filters.hasActiveFilters
-                    ? "No notifications match the active filters."
-                    : "No new notifications."
+                icon: "wifi.slash",
+                title: "Network offline",
+                detail: "Your device is offline. Please check your network connection."
             )
+        } else if let error = notificationsStore.lastError {
+            errorState(error)
         } else {
-            ScrollView {
-                LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
-                    ForEach(visibleGroups) { group in
-                        if showAccountHeaders {
-                            accountHeader(group.account)
-                        }
-                        switch settings.groupBy {
-                        case .repository:
-                            repositorySections(group)
-                        case .date:
-                            dateRows(group)
+            let visibleGroups = notificationsStore.filteredGroups
+            if visibleGroups.allSatisfy(\.notifications.isEmpty) {
+                emptyState(
+                    icon: "checkmark.circle",
+                    title: "All caught up!",
+                    detail: filters.hasActiveFilters
+                        ? "No notifications match the active filters."
+                        : "No new notifications."
+                )
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
+                        ForEach(visibleGroups) { group in
+                            if showAccountHeaders {
+                                accountHeader(group.account)
+                            }
+                            switch settings.groupBy {
+                            case .repository:
+                                repositorySections(group)
+                            case .date:
+                                dateRows(group)
+                            }
                         }
                     }
                 }
@@ -174,7 +182,12 @@ struct NotificationsListView: View {
         .background(.ultraThinMaterial)
     }
 
-    private func emptyState(icon: String, title: String, detail: String) -> some View {
+    private func emptyState(
+        icon: String,
+        title: String,
+        detail: String,
+        @ViewBuilder accessory: () -> some View = { EmptyView() }
+    ) -> some View {
         VStack(spacing: 8) {
             Spacer()
             Image(systemName: icon)
@@ -185,10 +198,28 @@ struct NotificationsListView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+            accessory()
             Spacer()
         }
         .padding(24)
         .frame(maxWidth: .infinity)
+    }
+
+    private func errorState(_ error: FetchError) -> some View {
+        emptyState(icon: error.kind.icon, title: error.kind.title, detail: error.kind.guidance) {
+            if error.kind == .unknown {
+                Text(error.message)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            }
+            if error.kind.needsAccountAction {
+                Button("Manage accounts", action: onOpenSettings)
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color(nsColor: .systemRed))
+                    .padding(.top, 8)
+            }
+        }
     }
 }
 

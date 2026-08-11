@@ -1,10 +1,61 @@
 import Foundation
 
+/// Failure classes the UI renders distinct error panes for
+/// (gitify/src/renderer/utils/core/errors.ts + utils/api/errors.ts).
+enum APIErrorKind: Equatable {
+    case badCredentials
+    case missingScopes
+    case rateLimited
+    case network
+    case unknown
+}
+
 struct GitHubAPIError: LocalizedError {
+    /// 0 when the request failed before reaching GitHub (transport error).
     let statusCode: Int
     let message: String
+    let kind: APIErrorKind
 
-    var errorDescription: String? { "GitHub API \(statusCode): \(message)" }
+    /// The request never reached GitHub (DNS, timeout, connection loss).
+    init(transport: Error) {
+        statusCode = 0
+        message = transport.localizedDescription
+        kind = .network
+    }
+
+    init(http: HTTPURLResponse, message: String) {
+        statusCode = http.statusCode
+        self.message = message
+        kind = Self.classify(message: message, http: http)
+    }
+
+    var errorDescription: String? {
+        statusCode == 0 ? message : "GitHub API \(statusCode): \(message)"
+    }
+
+    /// Status/message/header → failure class, mirroring upstream's
+    /// determineFailureType (401 → bad credentials; 403/429 → missing scopes
+    /// or rate limited; 500 → network).
+    private static func classify(message: String, http: HTTPURLResponse) -> APIErrorKind {
+        switch http.statusCode {
+        case 401:
+            return .badCredentials
+        case 403, 429:
+            if message.contains("Missing the 'notifications' scope") {
+                return .missingScopes
+            }
+            if http.value(forHTTPHeaderField: "X-RateLimit-Remaining") == "0"
+                || http.value(forHTTPHeaderField: "Retry-After") != nil
+                || message.localizedCaseInsensitiveContains("rate limit") {
+                return .rateLimited
+            }
+            return .unknown
+        case 500:
+            return .network
+        default:
+            return .unknown
+        }
+    }
 }
 
 /// Stateless GitHub REST client for a single account.
@@ -68,11 +119,17 @@ struct GitHubClient {
 
     @discardableResult
     private func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
-        let (data, response) = try await Self.session.data(for: request)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await Self.session.data(for: request)
+        } catch {
+            throw GitHubAPIError(transport: error)
+        }
         let http = response as! HTTPURLResponse
         guard (200..<300).contains(http.statusCode) else {
             let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["message"] as? String
-            throw GitHubAPIError(statusCode: http.statusCode, message: message ?? "request failed")
+            throw GitHubAPIError(http: http, message: message ?? "request failed")
         }
         return (data, http)
     }

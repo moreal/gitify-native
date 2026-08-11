@@ -49,7 +49,7 @@ sign-in adds the account; list shows both account sections; Cancel returns to Se
 
 ## 2. Error classification and per-account errors — ✅ high priority
 
-- [ ] (commit 1) Classify API errors in `Sources/Core/GitHubClient.swift` /
+- [x] (commit 1) Classify API errors in `Sources/Core/GitHubClient.swift` /
       `NotificationsStore`: bad credentials (401), rate limited (403/429 with
       `X-RateLimit-Remaining: 0` or `retry-after`), missing scopes, network vs offline,
       unknown. Show a distinct full-pane state per class (icon + title + guidance;

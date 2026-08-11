@@ -15,13 +15,26 @@ struct AccountNotifications: Identifiable, Equatable {
     var notifications: [GHNotification]
 }
 
+/// A classified fetch failure, ready for the UI's per-class error panes.
+struct FetchError: Equatable {
+    let kind: APIErrorKind
+    let message: String
+
+    init(_ error: Error) {
+        // The client wraps everything (transport included) in GitHubAPIError;
+        // anything else is a local failure like a decode error.
+        kind = (error as? GitHubAPIError)?.kind ?? .unknown
+        message = error.localizedDescription
+    }
+}
+
 @MainActor
 final class NotificationsStore: ObservableObject {
     @Published private(set) var groups: [AccountNotifications] = []
     /// Enriched PR/Issue/Discussion detail keyed by notification id.
     @Published private(set) var details: [String: SubjectDetail] = [:]
     @Published private(set) var isFetching = false
-    @Published private(set) var lastError: String?
+    @Published private(set) var lastError: FetchError?
 
     /// Groups after applying the user's filters — what the UI, tray count,
     /// and banners all consume (raw `groups` stays unfiltered, like Gitify's cache).
@@ -115,7 +128,7 @@ final class NotificationsStore: ObservableObject {
         }
 
         var newGroups: [AccountNotifications] = []
-        var fetchError: String?
+        var fetchError: FetchError?
         for account in accountsStore.accounts {
             guard let client = accountsStore.client(for: account) else { continue }
             do {
@@ -125,11 +138,11 @@ final class NotificationsStore: ObservableObject {
                 )
                 newGroups.append(AccountNotifications(account: account, notifications: items))
             } catch {
-                fetchError = "\(account.id): \(error.localizedDescription)"
+                fetchError = FetchError(error)
             }
         }
 
-        lastError = fetchError
+        if lastError != fetchError { lastError = fetchError }
         groups = newGroups
 
         // Enrich before diffing so banners can respect detailed filters (Gitify order).
