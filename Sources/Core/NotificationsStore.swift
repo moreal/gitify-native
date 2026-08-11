@@ -199,10 +199,14 @@ final class NotificationsStore: ObservableObject {
 
     // MARK: - Enrichment
 
-    /// Fetches PR/Issue subject detail for state-colored icons and numbers.
-    /// Cached by subject URL + updatedAt so steady-state polls cost no extra requests.
+    /// Fetches PR/Issue/Discussion/Commit subject detail for state-colored
+    /// icons, numbers, and author/display-user data. Cached by enrichment URL
+    /// + updatedAt so steady-state polls cost no extra requests.
     private func enrich(_ groups: [AccountNotifications]) async {
-        var work: [(id: String, url: URL, cacheKey: String, type: SubjectType, client: GitHubClient)] = []
+        var work: [(
+            id: String, url: URL, commentURL: URL?, cacheKey: String,
+            type: SubjectType, client: GitHubClient
+        )] = []
         var enriched: [String: SubjectDetail] = [:]
 
         for group in groups {
@@ -211,33 +215,32 @@ final class NotificationsStore: ObservableObject {
                 // CI subjects have no API URL; their state comes from the title.
                 switch item.subject.type {
                 case .checkSuite:
-                    if let detail = SubjectDetail.parseCheckSuite(
+                    enriched[item.id] = SubjectDetail.parseCheckSuite(
                         title: item.subject.title,
                         repoHtmlUrl: item.repository.htmlUrl
-                    ) {
-                        enriched[item.id] = detail
-                    }
+                    )
                     continue
                 case .workflowRun:
-                    if let detail = SubjectDetail.parseWorkflowRun(
+                    enriched[item.id] = SubjectDetail.parseWorkflowRun(
                         title: item.subject.title,
                         repoHtmlUrl: item.repository.htmlUrl
-                    ) {
-                        enriched[item.id] = detail
-                    }
+                    )
                     continue
                 default:
                     break
                 }
-                guard [.pullRequest, .issue, .discussion].contains(item.subject.type),
-                      let urlString = item.subject.url,
-                      let url = URL(string: urlString)
+                guard let cacheKey = Self.cacheKey(for: item),
+                      let url = Self.enrichmentURL(for: item).flatMap(URL.init(string:))
                 else { continue }
-                let cacheKey = "\(urlString)|\(item.updatedAt.timeIntervalSince1970)"
                 if let cached = detailCache[cacheKey] {
                     enriched[item.id] = cached
                 } else {
-                    work.append((item.id, url, cacheKey, item.subject.type, client))
+                    // Commits additionally fetch the latest comment: its
+                    // commenter is the display user (upstream commit.ts).
+                    let commentURL = item.subject.type == .commit
+                        ? item.subject.latestCommentUrl.flatMap(URL.init(string:))
+                        : nil
+                    work.append((item.id, url, commentURL, cacheKey, item.subject.type, client))
                 }
             }
         }
@@ -255,7 +258,12 @@ final class NotificationsStore: ObservableObject {
                     guard let json = try? await item.client.subjectDetail(apiURL: item.url) else {
                         return nil
                     }
-                    return (item.id, item.cacheKey, SubjectDetail.parse(json: json, type: item.type))
+                    var detail = SubjectDetail.parse(json: json, type: item.type)
+                    if let commentURL = item.commentURL,
+                       let commentJson = try? await item.client.subjectDetail(apiURL: commentURL) {
+                        detail.applyLatestComment(json: commentJson)
+                    }
+                    return (item.id, item.cacheKey, detail)
                 }
             }
             for _ in 0..<8 { addNext(&taskGroup) }
@@ -273,12 +281,26 @@ final class NotificationsStore: ObservableObject {
             enriched[id] = detail
         }
         // Drop cache entries no longer referenced by any current notification.
-        let liveKeys = Set(groups.flatMap(\.notifications).compactMap { item -> String? in
-            guard let url = item.subject.url else { return nil }
-            return "\(url)|\(item.updatedAt.timeIntervalSince1970)"
-        })
+        let liveKeys = Set(groups.flatMap(\.notifications).compactMap(Self.cacheKey(for:)))
         detailCache = detailCache.filter { liveKeys.contains($0.key) }
         details = enriched
+    }
+
+    /// The primary API URL enrichment fetches for a notification, nil for
+    /// types that aren't enriched from the API.
+    private static func enrichmentURL(for item: GHNotification) -> String? {
+        switch item.subject.type {
+        case .pullRequest, .issue, .discussion, .commit:
+            return item.subject.url
+        default:
+            return nil
+        }
+    }
+
+    /// Detail-cache key; must stay in lockstep between the fetch pass and the
+    /// liveness cleanup or entries get evicted every poll.
+    private static func cacheKey(for item: GHNotification) -> String? {
+        enrichmentURL(for: item).map { "\($0)|\(item.updatedAt.timeIntervalSince1970)" }
     }
 
     // MARK: - Actions

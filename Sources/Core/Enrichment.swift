@@ -29,9 +29,14 @@ struct SubjectDetail: Equatable {
     var htmlUrl: String?
     var number: Int?
     var state: SubjectState?
+    /// Subject author — what author:/user-type filters match (upstream subject.author).
     var author: String?
     /// "User" | "Bot" | "Organization" (REST user.type)
     var authorType: String?
+    /// Display user for avatars and profile links: the latest commenter when
+    /// the notification points at a comment, else the author (upstream subject.user).
+    var userLogin: String?
+    var userAvatarUrl: String?
 
     static func parse(json: [String: Any], type: SubjectType) -> SubjectDetail {
         var detail = SubjectDetail(
@@ -39,9 +44,13 @@ struct SubjectDetail: Equatable {
             number: json["number"] as? Int,
             state: nil
         )
-        if let user = json["user"] as? [String: Any] {
+        // PR/Issue/Discussion JSON carries the user under "user";
+        // commit JSON under "author".
+        if let user = json["user"] as? [String: Any] ?? json["author"] as? [String: Any] {
             detail.author = user["login"] as? String
             detail.authorType = user["type"] as? String
+            detail.userLogin = detail.author
+            detail.userAvatarUrl = user["avatar_url"] as? String
         }
         switch type {
         case .pullRequest:
@@ -75,6 +84,16 @@ struct SubjectDetail: Equatable {
             break
         }
         return detail
+    }
+
+    /// Overlays the latest comment on a commit detail: the commenter becomes
+    /// the display user (upstream commit.ts: user = commenter ?? author).
+    mutating func applyLatestComment(json: [String: Any]) {
+        htmlUrl = json["html_url"] as? String ?? htmlUrl
+        if let user = json["user"] as? [String: Any] {
+            userLogin = user["login"] as? String
+            userAvatarUrl = user["avatar_url"] as? String
+        }
     }
 
     // MARK: - CI subjects (no API URL — parsed from the notification title)

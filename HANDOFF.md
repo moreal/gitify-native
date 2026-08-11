@@ -66,7 +66,7 @@ per-account blocks in `src/renderer/components/notifications/AccountNotification
 
 ## 3. Commit and Release enrichment
 
-- [ ] (commit 1) Enrich `Commit` subjects: fetch `subject.url` (commit → `author.login`,
+- [x] (commit 1) Enrich `Commit` subjects: fetch `subject.url` (commit → `author.login`,
       `author.avatar_url`) and `subject.latest_comment_url` (commit comment → commenter)
       so author/author-type filters and avatars apply to commits.
 - [ ] (commit 2) Enrich `Release` subjects: fetch `subject.url` → release `author`.
