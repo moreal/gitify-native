@@ -58,24 +58,31 @@ struct GitHubAPIError: LocalizedError {
     }
 }
 
-/// Stateless GitHub REST client for a single account.
-struct GitHubClient {
-    let baseURL: URL
-    let token: String
-
-    private static let session: URLSession = {
+extension URLSession {
+    /// The shared recipe for every app HTTP session: ephemeral,
+    /// cache-bypassing (always hit the network — matches Gitify's
+    /// Cache-Control: no-cache; a cached /notifications response would show
+    /// stale data for a poller), and joined to the UI-test mock protocol so
+    /// tests stay hermetic.
+    static func makeGitifySession() -> URLSession {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 30
         config.httpAdditionalHeaders = ["User-Agent": "gitify-native"]
-        // Always hit the network — matches Gitify's Cache-Control: no-cache.
-        // A cached /notifications response would show stale data for a poller.
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.urlCache = nil
         if UITestMock.isActive {
             config.protocolClasses = [UITestMockURLProtocol.self]
         }
         return URLSession(configuration: config)
-    }()
+    }
+}
+
+/// Stateless GitHub REST client for a single account.
+struct GitHubClient {
+    let baseURL: URL
+    let token: String
+
+    private static let session = URLSession.makeGitifySession()
 
     private static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()

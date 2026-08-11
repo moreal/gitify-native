@@ -159,6 +159,18 @@ Upstream reference: `src/renderer/utils/auth/platform.ts`,
 
 Upstream reference: `src/main/menu.ts`, `src/main/lifecycle/reset.ts`.
 
+## 11. Update checker (user-requested 2026-08-12; was out of scope)
+
+- [x] Check GitHub Releases (`releases/latest`) for a newer version — on launch,
+      daily, and manually (tray menu + Settings footer) — deliver a system banner
+      when one appears, and install in place: download the release `.zip`, verify
+      its SHA-256 checksum and Developer ID signature (same team as the running
+      app), swap the bundle, relaunch. Dev/ad-hoc, translocated, or read-only
+      installs fall back to opening the release page. Zero-dep (no Sparkle):
+      `Sources/App/UpdateChecker.swift`.
+
+Upstream reference: `src/main/updater.ts`, `src/main/menu.ts` (update menu items).
+
 ---
 
 ## Out of scope (do NOT implement without the user asking)
@@ -167,5 +179,6 @@ Per user decision: Gitea/Forgejo/Codeberg and Bitbucket support, OAuth App web f
 (`gitify://` protocol), metric pills (comments/reactions/reviews/labels/milestone/
 linked-issues/stacked-PRs/issue-type), in-app single-key shortcuts and the sidebar,
 `keepWindowOnBlur`, foreground/background link opening, `delayNotificationState`,
-zoom, the electron-updater-style update checker, and Glass/Primer theming (this port
-deliberately uses native materials and system semantic colors).
+zoom, and Glass/Primer theming (this port deliberately uses native materials and
+system semantic colors). The update checker moved out of this list when the user
+requested it (item 11).

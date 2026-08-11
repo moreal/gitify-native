@@ -10,6 +10,7 @@ final class StatusItemController: NSObject {
     private let settings: SettingsStore
     private let accountsStore: AccountsStore
     private let notificationsStore: NotificationsStore
+    private let updateChecker: UpdateChecker
     /// Count title deferred while the popover is open: applying it would resize
     /// the variable-length status item and make AppKit re-anchor the popover,
     /// visibly shifting it sideways.
@@ -18,11 +19,13 @@ final class StatusItemController: NSObject {
     init(
         settings: SettingsStore,
         accountsStore: AccountsStore,
-        notificationsStore: NotificationsStore
+        notificationsStore: NotificationsStore,
+        updateChecker: UpdateChecker
     ) {
         self.settings = settings
         self.accountsStore = accountsStore
         self.notificationsStore = notificationsStore
+        self.updateChecker = updateChecker
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -36,6 +39,7 @@ final class StatusItemController: NSObject {
                 .environmentObject(accountsStore)
                 .environmentObject(notificationsStore)
                 .environmentObject(notificationsStore.filters)
+                .environmentObject(updateChecker)
         )
 
         if let button = statusItem.button {
@@ -108,12 +112,37 @@ final class StatusItemController: NSObject {
         menu.addItem(withTitle: "Open Gitify", action: #selector(openGitify), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Refresh", action: #selector(refresh), keyEquivalent: "r").target = self
         menu.addItem(.separator())
+        addUpdateItems(to: menu)
+        menu.addItem(.separator())
         menu.addItem(withTitle: "Reset Gitify…", action: #selector(confirmReset), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Gitify", action: #selector(quit), keyEquivalent: "q").target = self
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
         statusItem.menu = nil // detach so left click keeps toggling the popover
+    }
+
+    /// Upstream tray parity: a "Check for updates" action plus a status row
+    /// reflecting the checker's phase. Action-less items render disabled.
+    private func addUpdateItems(to menu: NSMenu) {
+        let items: [(title: String, action: Selector?)] = switch updateChecker.phase {
+        case .idle, .failed: [("Check for updates", #selector(checkForUpdates))]
+        case .checking: [("Checking for updates…", nil)]
+        case .upToDate: [("Check for updates", #selector(checkForUpdates)), ("No updates available", nil)]
+        case .available(let release): [("Update to v\(release.version)…", #selector(installUpdate))]
+        case .installing: [("Installing update…", nil)]
+        }
+        for item in items {
+            menu.addItem(withTitle: item.title, action: item.action, keyEquivalent: "").target = self
+        }
+    }
+
+    @objc private func checkForUpdates() {
+        Task { await updateChecker.check(manual: true) }
+    }
+
+    @objc private func installUpdate() {
+        updateChecker.install()
     }
 
     @objc private func openGitify() {

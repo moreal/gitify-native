@@ -5,6 +5,7 @@ struct SettingsView: View {
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var accountsStore: AccountsStore
     @EnvironmentObject private var notificationsStore: NotificationsStore
+    @EnvironmentObject private var updateChecker: UpdateChecker
     let onClose: () -> Void
     let onAddAccount: () -> Void
 
@@ -138,18 +139,18 @@ struct SettingsView: View {
         ]
     }
 
-    /// Version link to that tag's release notes + Quit
+    /// Version link to that tag's release notes + update status + Quit
     /// (upstream SettingsFooter).
     private var footer: some View {
-        HStack {
-            Button("Gitify v\(Self.appVersion)") {
-                let url = URL(string: "https://github.com/moreal/gitify-native/releases/tag/v\(Self.appVersion)")!
-                NSWorkspace.shared.open(url)
+        HStack(spacing: 12) {
+            Button("Gitify v\(UpdateChecker.currentVersion)") {
+                NSWorkspace.shared.open(UpdateChecker.releaseNotesURL)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .font(.caption)
             .help("View release notes")
+            updateStatus
             Spacer()
             Button("Quit Gitify") { NSApp.terminate(nil) }
                 .controlSize(.small)
@@ -158,8 +159,40 @@ struct SettingsView: View {
         .padding(.vertical, 8)
     }
 
-    private static let appVersion =
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+    @ViewBuilder private var updateStatus: some View {
+        switch updateChecker.phase {
+        case .idle:
+            checkUpdatesButton("Check for updates")
+        case .checking:
+            updateCaption("Checking for updates…")
+        case .upToDate:
+            updateCaption("Up to date")
+        case .available(let release):
+            Button("Update to v\(release.version)") { updateChecker.install() }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+        case .installing:
+            updateCaption("Installing update…")
+        case .failed(let message):
+            checkUpdatesButton("Update check failed — retry", tint: Color(nsColor: .systemRed))
+                .help(message)
+        }
+    }
+
+    private func updateCaption(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    private func checkUpdatesButton(_ title: String, tint: Color? = nil) -> some View {
+        Button(title) {
+            Task { await updateChecker.check(manual: true) }
+        }
+        .buttonStyle(.plain)
+        .font(.caption)
+        .foregroundStyle(tint.map(AnyShapeStyle.init) ?? AnyShapeStyle(.secondary))
+    }
 
     private func refetch() {
         Task { await notificationsStore.fetch() }

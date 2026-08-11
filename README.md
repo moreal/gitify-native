@@ -26,6 +26,16 @@ Tagged releases are built and published automatically by [GitHub Actions](.githu
 
 The version baked into the app comes from the tag.
 
+### Auto-update
+
+The app checks GitHub Releases for a newer version on launch, daily, and on
+demand (tray right-click menu or the Settings footer), and shows a system
+notification when one appears. Installing downloads the release `.zip`,
+verifies its SHA-256 checksum and that its Developer ID signature matches the
+running app's team, swaps the bundle in place, and relaunches. Builds where an
+in-place swap isn't possible (ad-hoc/dev builds, translocated or read-only
+locations) open the release page in the browser instead.
+
 ### Code signing
 
 By default releases are **ad-hoc signed**: macOS Gatekeeper reports downloads as "damaged", and the first launch requires clearing quarantine (`xattr -dr com.apple.quarantine /Applications/Gitify.app`). This is an Apple policy limitation — passing Gatekeeper requires a paid Apple Developer membership; no CI configuration can work around it.

@@ -94,6 +94,10 @@ final class UITestMockURLProtocol: URLProtocol {
                 : []
             return (200, notificationsJSON(slice))
         }
+        if method == "GET", path.hasSuffix("/releases/latest") {
+            // The update checker's feed: no releases → the checker stays idle.
+            return (404, Data())
+        }
         if path.hasPrefix("/notifications/threads/") {
             let last = path.split(separator: "/").last.map(String.init) ?? ""
             if last == "subscription" {
