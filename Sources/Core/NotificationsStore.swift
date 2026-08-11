@@ -36,12 +36,25 @@ struct FetchError: Equatable {
     }
 }
 
+enum NotificationAction {
+    case markRead, markDone, unsubscribe
+}
+
+/// A failed row action, kept so the row can show a danger button that retries
+/// (upstream useNotificationActionFailuresStore).
+struct ActionFailure: Equatable {
+    let action: NotificationAction
+    let error: FetchError
+}
+
 @MainActor
 final class NotificationsStore: ObservableObject {
     @Published private(set) var groups: [AccountNotifications] = []
     /// Enriched PR/Issue/Discussion detail keyed by notification id.
     @Published private(set) var details: [String: SubjectDetail] = [:]
     @Published private(set) var isFetching = false
+    /// Failed row actions by notification id; cleared on retry or refetch.
+    @Published private(set) var actionFailures: [String: ActionFailure] = [:]
 
     /// Full-pane error, shown only when every account failed: the shared
     /// error if they all failed alike, otherwise a generic unknown
@@ -168,6 +181,12 @@ final class NotificationsStore: ObservableObject {
         }
 
         groups = newGroups
+        // Drop failure markers for threads the poll no longer lists.
+        if !actionFailures.isEmpty {
+            let liveIDs = Set(newGroups.flatMap(\.notifications).map(\.id))
+            let kept = actionFailures.filter { liveIDs.contains($0.key) }
+            if kept.count != actionFailures.count { actionFailures = kept }
+        }
         // Update the tray now; the deferred call re-fires after enrichment.
         onStateChange?()
 
@@ -306,30 +325,75 @@ final class NotificationsStore: ObservableObject {
     // MARK: - Actions
 
     func markRead(_ notification: GHNotification, account: Account) async {
-        guard let client = accountsStore.client(for: account) else { return }
-        try? await client.markThreadRead(id: notification.id)
-        removeLocally(notification, account: account)
+        await performAction(.markRead, notification, account: account) { client in
+            try await client.markThreadRead(id: notification.id)
+        }
     }
 
     func markDone(_ notification: GHNotification, account: Account) async {
-        guard let client = accountsStore.client(for: account) else { return }
-        do {
-            try await client.markThreadDone(id: notification.id)
-        } catch {
-            // GHES < 3.13 does not support mark-as-done; fall back to mark-as-read.
-            try? await client.markThreadRead(id: notification.id)
+        await performAction(.markDone, notification, account: account) { client in
+            try await Self.markDoneWithFallback(notification.id, client: client)
         }
-        removeLocally(notification, account: account)
     }
 
     func unsubscribe(_ notification: GHNotification, account: Account) async {
-        guard let client = accountsStore.client(for: account) else { return }
-        try? await client.unsubscribe(threadID: notification.id)
-        if settings.markAsDoneOnUnsubscribe {
-            await markDone(notification, account: account)
-        } else {
-            await markRead(notification, account: account)
+        let markAsDone = settings.markAsDoneOnUnsubscribe
+        await performAction(.unsubscribe, notification, account: account) { client in
+            try await client.unsubscribe(threadID: notification.id)
+            if markAsDone {
+                try await Self.markDoneWithFallback(notification.id, client: client)
+            } else {
+                try await client.markThreadRead(id: notification.id)
+            }
         }
+    }
+
+    /// GHES < 3.13 does not support mark-as-done; fall back to mark-as-read.
+    private static func markDoneWithFallback(_ id: String, client: GitHubClient) async throws {
+        do {
+            try await client.markThreadDone(id: id)
+        } catch {
+            try await client.markThreadRead(id: id)
+        }
+    }
+
+    /// Optimistically removes the thread, then runs the API call; on failure
+    /// the thread is restored in place and the failure recorded so the row's
+    /// action button turns into a retry affordance.
+    private func performAction(
+        _ action: NotificationAction,
+        _ notification: GHNotification,
+        account: Account,
+        operation: (GitHubClient) async throws -> Void
+    ) async {
+        guard let client = accountsStore.client(for: account) else { return }
+        removeLocally(ids: [notification.id], accountID: account.id)
+        do {
+            try await operation(client)
+            // A poll racing the action may have resurrected the thread from a
+            // stale server snapshot; drop it again now that the action stuck.
+            removeLocally(ids: [notification.id], accountID: account.id)
+        } catch {
+            actionFailures[notification.id] = ActionFailure(action: action, error: FetchError(error))
+            restoreLocally(notification, account: account)
+        }
+    }
+
+    /// Undoes an optimistic removal: reinserts the thread by recency (the
+    /// order the API returns) and re-marks it seen so it doesn't re-announce
+    /// on the next poll.
+    private func restoreLocally(_ notification: GHNotification, account: Account) {
+        guard let groupIndex = groups.firstIndex(where: { $0.id == account.id }),
+              !groups[groupIndex].notifications.contains(where: { $0.id == notification.id })
+        else { return }
+        let position = groups[groupIndex].notifications
+            .firstIndex { $0.updatedAt < notification.updatedAt }
+            ?? groups[groupIndex].notifications.count
+        groups[groupIndex].notifications.insert(notification, at: position)
+        if notification.unread {
+            seenIDs[account.id, default: []].insert(notification.id)
+        }
+        onStateChange?()
     }
 
     /// Marks every visible notification of the repo as read via individual thread
@@ -356,13 +420,7 @@ final class NotificationsStore: ObservableObject {
         let targets = group.notifications.filter { $0.repository.fullName == fullName }
         await withTaskGroup(of: Void.self) { taskGroup in
             for item in targets {
-                taskGroup.addTask {
-                    do {
-                        try await client.markThreadDone(id: item.id)
-                    } catch {
-                        try? await client.markThreadRead(id: item.id)
-                    }
-                }
+                taskGroup.addTask { try? await Self.markDoneWithFallback(item.id, client: client) }
             }
         }
         removeLocally(ids: Set(targets.map(\.id)), accountID: account.id)
@@ -375,10 +433,9 @@ final class NotificationsStore: ObservableObject {
             groups[index].notifications.removeAll { ids.contains($0.id) }
         }
         seenIDs[accountID]?.subtract(ids)
+        if ids.contains(where: { actionFailures[$0] != nil }) {
+            actionFailures = actionFailures.filter { !ids.contains($0.key) }
+        }
         onStateChange?()
-    }
-
-    private func removeLocally(_ notification: GHNotification, account: Account) {
-        removeLocally(ids: [notification.id], accountID: account.id)
     }
 }

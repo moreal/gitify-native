@@ -267,6 +267,10 @@ struct NotificationRow: View {
         notificationsStore.details[notification.id]
     }
 
+    private var failure: ActionFailure? {
+        notificationsStore.actionFailures[notification.id]
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: subjectIcon)
@@ -283,15 +287,20 @@ struct NotificationRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 4)
-            if isHovered {
+            // Keep the buttons visible while a failure is shown so the danger
+            // state (and its retry affordance) can't hide with the hover.
+            if isHovered || failure != nil {
                 HStack(spacing: 6) {
-                    actionButton("checkmark", help: "Mark as done", id: "notification-mark-done") {
+                    actionButton("checkmark", help: "Mark as done", id: "notification-mark-done",
+                                 action: .markDone) {
                         await notificationsStore.markDone(notification, account: account)
                     }
-                    actionButton("eye.slash", help: "Mark as read", id: "notification-mark-read") {
+                    actionButton("eye.slash", help: "Mark as read", id: "notification-mark-read",
+                                 action: .markRead) {
                         await notificationsStore.markRead(notification, account: account)
                     }
-                    actionButton("bell.slash", help: "Unsubscribe", id: "notification-unsubscribe") {
+                    actionButton("bell.slash", help: "Unsubscribe", id: "notification-unsubscribe",
+                                 action: .unsubscribe) {
                         await notificationsStore.unsubscribe(notification, account: account)
                     }
                 }
@@ -309,15 +318,19 @@ struct NotificationRow: View {
         _ icon: String,
         help: String,
         id: String,
-        action: @escaping () async -> Void
+        action: NotificationAction,
+        perform: @escaping () async -> Void
     ) -> some View {
-        Button {
-            Task { await action() }
+        // A recorded failure turns this button into a danger-tinted retry.
+        let failedError = failure.flatMap { $0.action == action ? $0.error : nil }
+        return Button {
+            Task { await perform() }
         } label: {
-            Image(systemName: icon)
+            Image(systemName: failedError != nil ? "exclamationmark.triangle" : icon)
+                .foregroundStyle(failedError != nil ? Color(nsColor: .systemRed) : Color.primary)
         }
         .buttonStyle(.borderless)
-        .help(help)
+        .help(failedError.map { "\(help) failed: \($0.message). Click to retry." } ?? help)
         .accessibilityLabel(help)
         .accessibilityIdentifier(id)
     }

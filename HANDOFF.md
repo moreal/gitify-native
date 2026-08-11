@@ -79,7 +79,7 @@ Upstream reference: `src/renderer/utils/forges/github/enrich.ts` (REST-only bran
 
 ## 4. Action failure feedback
 
-- [ ] Undo the optimistic removal when mark-read/done/unsubscribe fails: restore the
+- [x] Undo the optimistic removal when mark-read/done/unsubscribe fails: restore the
       thread into the list (and `seenIDs`), and surface the failure on the row's
       action button (danger tint + tooltip with the error; clicking retries).
 
