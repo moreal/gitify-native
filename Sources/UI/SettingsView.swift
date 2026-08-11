@@ -108,6 +108,9 @@ struct SettingsView: View {
             // Drop the grouped form's opaque backdrop so the popover material
             // shows through, matching the notifications list surface.
             .scrollContentBackground(.hidden)
+
+            Divider()
+            footer
         }
         .onDisappear { shortcutRecorder.stop() }
         // Coalesced so a settings reset flipping several at once refetches
@@ -134,6 +137,29 @@ struct SettingsView: View {
             settings.useAlternateIdleIcon,
         ]
     }
+
+    /// Version link to that tag's release notes + Quit
+    /// (upstream SettingsFooter).
+    private var footer: some View {
+        HStack {
+            Button("Gitify v\(Self.appVersion)") {
+                let url = URL(string: "https://github.com/moreal/gitify-native/releases/tag/v\(Self.appVersion)")!
+                NSWorkspace.shared.open(url)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .font(.caption)
+            .help("View release notes")
+            Spacer()
+            Button("Quit Gitify") { NSApp.terminate(nil) }
+                .controlSize(.small)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    private static let appVersion =
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
 
     private func refetch() {
         Task { await notificationsStore.fetch() }

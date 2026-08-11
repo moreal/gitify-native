@@ -135,7 +135,7 @@ Upstream reference: `src/renderer/components/notifications/{NotificationRow,Repo
 
 - [x] (commit 1) "Reset settings" button (confirmation alert → restore `SettingsStore`
       defaults; leave accounts/filters intact).
-- [ ] (commit 2) Settings footer showing `Gitify v<CFBundleShortVersionString>` as a
+- [x] (commit 2) Settings footer showing `Gitify v<CFBundleShortVersionString>` as a
       link to that tag's GitHub release notes, plus a Quit button.
 
 Upstream reference: `src/renderer/components/settings/{SettingsReset,SettingsFooter}.tsx`.
