@@ -64,11 +64,11 @@ struct NotificationsListView: View {
                 title: "Network offline",
                 detail: "Your device is offline. Please check your network connection."
             )
-        } else if let error = notificationsStore.lastError {
+        } else if let error = notificationsStore.globalError {
             errorState(error)
         } else {
             let visibleGroups = notificationsStore.filteredGroups
-            if visibleGroups.allSatisfy(\.notifications.isEmpty) {
+            if visibleGroups.allSatisfy({ $0.notifications.isEmpty && $0.error == nil }) {
                 emptyState(
                     icon: "checkmark.circle",
                     title: "All caught up!",
@@ -81,13 +81,17 @@ struct NotificationsListView: View {
                     LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
                         ForEach(visibleGroups) { group in
                             if showAccountHeaders {
-                                accountHeader(group.account)
+                                accountHeader(group.account, hasError: group.error != nil)
                             }
-                            switch settings.groupBy {
-                            case .repository:
-                                repositorySections(group)
-                            case .date:
-                                dateRows(group)
+                            if let error = group.error {
+                                inlineErrorBlock(error)
+                            } else {
+                                switch settings.groupBy {
+                                case .repository:
+                                    repositorySections(group)
+                                case .date:
+                                    dateRows(group)
+                                }
                             }
                         }
                     }
@@ -133,7 +137,7 @@ struct NotificationsListView: View {
 
     // MARK: - Headers
 
-    private func accountHeader(_ account: Account) -> some View {
+    private func accountHeader(_ account: Account, hasError: Bool) -> some View {
         HStack(spacing: 8) {
             AsyncImage(url: URL(string: account.user.avatarUrl)) { image in
                 image.resizable()
@@ -151,7 +155,34 @@ struct NotificationsListView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(Color.accentColor.opacity(0.08))
+        .background(
+            hasError
+                ? Color(nsColor: .systemRed).opacity(0.12)
+                : Color.accentColor.opacity(0.08)
+        )
+    }
+
+    /// Compact in-section error for one failing account, so other accounts'
+    /// notifications stay visible (upstream AccountNotifications error block).
+    private func inlineErrorBlock(_ error: FetchError) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: error.kind.icon)
+                .font(.system(size: 24))
+                .foregroundStyle(.secondary)
+            Text(error.kind.title)
+                .font(.subheadline.bold())
+            Text(error.kind.guidance)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            if error.kind.needsAccountAction {
+                Button("Manage accounts", action: onOpenSettings)
+                    .controlSize(.small)
+                    .tint(Color(nsColor: .systemRed))
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity)
     }
 
     private func repoHeader(_ fullName: String, account: Account) -> some View {
@@ -207,7 +238,7 @@ struct NotificationsListView: View {
 
     private func errorState(_ error: FetchError) -> some View {
         emptyState(icon: error.kind.icon, title: error.kind.title, detail: error.kind.guidance) {
-            if error.kind == .unknown {
+            if error.kind == .unknown, !error.message.isEmpty {
                 Text(error.message)
                     .font(.caption)
                     .foregroundStyle(.tertiary)

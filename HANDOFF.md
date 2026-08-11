@@ -54,7 +54,7 @@ sign-in adds the account; list shows both account sections; Cancel returns to Se
       `X-RateLimit-Remaining: 0` or `retry-after`), missing scopes, network vs offline,
       unknown. Show a distinct full-pane state per class (icon + title + guidance;
       bad credentials should offer a "Sign out" / re-auth path).
-- [ ] (commit 2) Per-account error isolation: a failing account renders an inline
+- [x] (commit 2) Per-account error isolation: a failing account renders an inline
       error block inside its own section while other accounts' notifications stay
       visible. Full-pane error only when every account fails.
 

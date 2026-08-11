@@ -13,6 +13,9 @@ struct AccountNotifications: Identifiable, Equatable {
     var id: String { account.id }
     let account: Account
     var notifications: [GHNotification]
+    /// Set when this account's fetch failed; its section shows an inline
+    /// error block while other accounts' notifications stay visible.
+    var error: FetchError?
 }
 
 /// A classified fetch failure, ready for the UI's per-class error panes.
@@ -26,6 +29,11 @@ struct FetchError: Equatable {
         kind = (error as? GitHubAPIError)?.kind ?? .unknown
         message = error.localizedDescription
     }
+
+    init(kind: APIErrorKind, message: String) {
+        self.kind = kind
+        self.message = message
+    }
 }
 
 @MainActor
@@ -34,7 +42,17 @@ final class NotificationsStore: ObservableObject {
     /// Enriched PR/Issue/Discussion detail keyed by notification id.
     @Published private(set) var details: [String: SubjectDetail] = [:]
     @Published private(set) var isFetching = false
-    @Published private(set) var lastError: FetchError?
+
+    /// Full-pane error, shown only when every account failed: the shared
+    /// error if they all failed alike, otherwise a generic unknown
+    /// (upstream doesAllAccountsHaveErrors + areAllAccountErrorsSame).
+    var globalError: FetchError? {
+        guard !groups.isEmpty, groups.allSatisfy({ $0.error != nil }) else { return nil }
+        let first = groups[0].error
+        return groups.allSatisfy { $0.error == first }
+            ? first
+            : FetchError(kind: .unknown, message: "")
+    }
 
     /// Groups after applying the user's filters — what the UI, tray count,
     /// and banners all consume (raw `groups` stays unfiltered, like Gitify's cache).
@@ -45,7 +63,8 @@ final class NotificationsStore: ObservableObject {
                 account: group.account,
                 notifications: group.notifications.filter {
                     filters.matches($0, detail: details[$0.id], detailedEnabled: settings.detailedNotifications)
-                }
+                },
+                error: group.error
             )
         }
     }
@@ -67,7 +86,7 @@ final class NotificationsStore: ObservableObject {
 
     var trayState: TrayState {
         if !isOnline { return .offline }
-        if lastError != nil { return .error }
+        if globalError != nil { return .error }
         return unreadCount > 0 ? .active : .idle
     }
 
@@ -80,7 +99,10 @@ final class NotificationsStore: ObservableObject {
     private let settings: SettingsStore
     let filters: FiltersStore
     private var pollTask: Task<Void, Never>?
-    private var seenIDs: Set<String> = []
+    /// Unread ids already announced, per account id. Errored accounts keep
+    /// their previous set so a transient failure doesn't re-announce every
+    /// notification once the account recovers.
+    private var seenIDs: [String: Set<String>] = [:]
     private var hasFetchedOnce = false
     /// Subject detail cache keyed by "subjectURL|updatedAt".
     private var detailCache: [String: SubjectDetail] = [:]
@@ -128,7 +150,6 @@ final class NotificationsStore: ObservableObject {
         }
 
         var newGroups: [AccountNotifications] = []
-        var fetchError: FetchError?
         for account in accountsStore.accounts {
             guard let client = accountsStore.client(for: account) else { continue }
             do {
@@ -138,24 +159,28 @@ final class NotificationsStore: ObservableObject {
                 )
                 newGroups.append(AccountNotifications(account: account, notifications: items))
             } catch {
-                fetchError = FetchError(error)
+                newGroups.append(AccountNotifications(
+                    account: account,
+                    notifications: [],
+                    error: FetchError(error)
+                ))
             }
         }
 
-        if lastError != fetchError { lastError = fetchError }
         groups = newGroups
+        // Update the tray now; the deferred call re-fires after enrichment.
+        onStateChange?()
 
         // Enrich before diffing so banners can respect detailed filters (Gitify order).
         if settings.detailedNotifications {
             await enrich(newGroups)
         }
 
-        let currentIDs = Set(newGroups.flatMap(\.notifications).filter(\.unread).map(\.id))
         if hasFetchedOnce {
             let fresh = newGroups.flatMap { group in
                 group.notifications
                     .filter { item in
-                        item.unread && !seenIDs.contains(item.id)
+                        item.unread && seenIDs[group.id]?.contains(item.id) != true
                             && filters.matches(
                                 item,
                                 detail: details[item.id],
@@ -166,7 +191,9 @@ final class NotificationsStore: ObservableObject {
             }
             if !fresh.isEmpty { onNewNotifications?(fresh) }
         }
-        seenIDs = currentIDs
+        for group in newGroups where group.error == nil {
+            seenIDs[group.id] = Set(group.notifications.filter(\.unread).map(\.id))
+        }
         hasFetchedOnce = true
     }
 
@@ -325,15 +352,11 @@ final class NotificationsStore: ObservableObject {
         if let index = groups.firstIndex(where: { $0.id == accountID }) {
             groups[index].notifications.removeAll { ids.contains($0.id) }
         }
-        seenIDs.subtract(ids)
+        seenIDs[accountID]?.subtract(ids)
         onStateChange?()
     }
 
     private func removeLocally(_ notification: GHNotification, account: Account) {
-        if let index = groups.firstIndex(where: { $0.id == account.id }) {
-            groups[index].notifications.removeAll { $0.id == notification.id }
-        }
-        seenIDs.remove(notification.id)
-        onStateChange?()
+        removeLocally(ids: [notification.id], accountID: account.id)
     }
 }
