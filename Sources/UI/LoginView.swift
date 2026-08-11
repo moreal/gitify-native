@@ -3,6 +3,9 @@ import SwiftUI
 struct LoginView: View {
     @EnvironmentObject private var accountsStore: AccountsStore
     @EnvironmentObject private var settings: SettingsStore
+    /// Set when presented as a route (adding another account); nil at first sign-in.
+    var onComplete: (() -> Void)?
+    var onCancel: (() -> Void)?
 
     @State private var token = ""
     @State private var hostname = "github.com"
@@ -23,29 +26,38 @@ struct LoginView: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            Image(systemName: "bell.badge")
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
-            Text("Sign in to GitHub")
-                .font(.title2.bold())
-
-            if let deviceCode {
-                deviceFlowPending(deviceCode)
-            } else {
-                loginForm
+        VStack(spacing: 0) {
+            if let onCancel {
+                PopoverHeader("Add account", onBack: {
+                    // Back mid device-flow must stop the token polling loop.
+                    deviceFlowTask?.cancel()
+                    onCancel()
+                })
             }
+            VStack(spacing: 16) {
+                Spacer()
+                Image(systemName: "bell.badge")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.secondary)
+                Text("Sign in to GitHub")
+                    .font(.title2.bold())
 
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(.callout)
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
+                if let deviceCode {
+                    deviceFlowPending(deviceCode)
+                } else {
+                    loginForm
+                }
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.callout)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                }
+                Spacer()
             }
-            Spacer()
+            .padding(24)
         }
-        .padding(24)
     }
 
     private var loginForm: some View {
@@ -104,6 +116,7 @@ struct LoginView: View {
                     method: .personalAccessToken
                 )
                 token = ""
+                onComplete?()
             } catch {
                 errorMessage = "Failed to validate provided token against \(normalizedHostname)"
             }
@@ -137,6 +150,7 @@ struct LoginView: View {
                     hostname: host,
                     method: .oauthDeviceFlow
                 )
+                onComplete?()
             } catch is CancellationError {
                 // user cancelled
             } catch {

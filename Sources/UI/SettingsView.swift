@@ -6,21 +6,11 @@ struct SettingsView: View {
     @EnvironmentObject private var accountsStore: AccountsStore
     @EnvironmentObject private var notificationsStore: NotificationsStore
     let onClose: () -> Void
+    let onAddAccount: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Button(action: onClose) {
-                    Image(systemName: "chevron.left")
-                }
-                .buttonStyle(.borderless)
-                Text("Settings")
-                    .font(.headline)
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            Divider()
+            PopoverHeader("Settings", onBack: onClose)
 
             Form {
                 Section("Appearance") {
@@ -81,11 +71,12 @@ struct SettingsView: View {
                             }
                             Spacer()
                             Button("Sign out") {
+                                // The accounts observer in AppDelegate refetches.
                                 accountsStore.removeAccount(account)
-                                Task { await notificationsStore.fetch() }
                             }
                         }
                     }
+                    Button("Add account", action: onAddAccount)
                 }
             }
             .formStyle(.grouped)

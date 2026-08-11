@@ -11,21 +11,11 @@ struct FiltersView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Button(action: onClose) {
-                    Image(systemName: "chevron.left")
-                }
-                .buttonStyle(.borderless)
-                Text("Filters")
-                    .font(.headline)
-                Spacer()
+            PopoverHeader("Filters", onBack: onClose) {
                 if filters.hasActiveFilters {
                     Button("Clear all") { filters.reset() }
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            Divider()
 
             Form {
                 Section("Search") {

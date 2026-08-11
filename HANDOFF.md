@@ -33,7 +33,7 @@ this file as part of the same commit that implements them.
 
 ## 1. Add-account entry point — ✅ high priority
 
-- [ ] Allow adding a second account after first sign-in.
+- [x] Allow adding a second account after first sign-in.
 
 Multi-account is fully modeled (per-account fetch, sections, Keychain), but
 `Sources/UI/PopoverRootView.swift` shows `LoginView` only when zero accounts exist,

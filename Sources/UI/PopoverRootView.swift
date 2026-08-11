@@ -4,6 +4,7 @@ enum PopoverRoute {
     case notifications
     case settings
     case filters
+    case login
 }
 
 struct PopoverRootView: View {
@@ -22,9 +23,17 @@ struct PopoverRootView: View {
                         onOpenFilters: { route = .filters }
                     )
                 case .settings:
-                    SettingsView(onClose: { route = .notifications })
+                    SettingsView(
+                        onClose: { route = .notifications },
+                        onAddAccount: { route = .login }
+                    )
                 case .filters:
                     FiltersView(onClose: { route = .notifications })
+                case .login:
+                    LoginView(
+                        onComplete: { route = .notifications },
+                        onCancel: { route = .settings }
+                    )
                 }
             }
         }
