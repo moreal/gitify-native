@@ -131,11 +131,18 @@ final class NotificationsStore: ObservableObject {
 
     // MARK: - Polling
 
-    func startPolling() {
+    /// fetchImmediately: false restarts just the schedule (interval change)
+    /// without spending a network fetch.
+    func startPolling(fetchImmediately: Bool = true) {
         pollTask?.cancel()
         pollTask = Task { [weak self] in
+            var skipFetch = !fetchImmediately
             while !Task.isCancelled {
-                await self?.fetch()
+                if skipFetch {
+                    skipFetch = false
+                } else {
+                    await self?.fetch()
+                }
                 let interval = await self?.effectivePollInterval ?? 60
                 try? await Task.sleep(for: .seconds(interval))
             }

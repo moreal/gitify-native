@@ -106,7 +106,7 @@ Upstream reference: `src/renderer/components/settings/SystemSettings.tsx` (live 
       on = paginate all pages (drop the current hard 10-page cap).
 - [x] (commit 2) Honor GitHub's `X-Poll-Interval` response header: effective poll
       interval = `max(fetchInterval, serverInterval)`.
-- [ ] (commit 3) Fetch interval: replace the 4-preset picker with a stepper
+- [x] (commit 3) Fetch interval: replace the 4-preset picker with a stepper
       (1 min – 60 min, step 1 min, matching upstream's bounds) and restart the running
       poll loop when the value changes (today it only applies on the next tick).
 

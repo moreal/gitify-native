@@ -40,11 +40,8 @@ struct SettingsView: View {
                     Toggle("Detailed notifications (state colors, numbers)", isOn: $settings.detailedNotifications)
                     Toggle("Mark as done when opening", isOn: $settings.markAsDoneOnOpen)
                     Toggle("Mark as done when unsubscribing", isOn: $settings.markAsDoneOnUnsubscribe)
-                    Picker("Fetch interval", selection: $settings.fetchInterval) {
-                        Text("1 minute").tag(TimeInterval(60))
-                        Text("5 minutes").tag(TimeInterval(300))
-                        Text("15 minutes").tag(TimeInterval(900))
-                        Text("1 hour").tag(TimeInterval(3600))
+                    Stepper(value: $settings.fetchIntervalMinutes, in: 1...60) {
+                        LabeledContent("Fetch interval", value: "\(settings.fetchIntervalMinutes) min")
                     }
                 }
                 Section("System") {

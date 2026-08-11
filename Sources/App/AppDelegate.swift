@@ -50,6 +50,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { await self?.notificationsStore.fetch() }
         }
 
+        // Re-time the running poll loop when the interval changes. Debounced
+        // so a click-held stepper coalesces into one restart, and without an
+        // immediate fetch — only the schedule changes.
+        fetchIntervalObserver = settings.$fetchInterval
+            .dropFirst()
+            .removeDuplicates()
+            .debounce(for: .seconds(0.5), scheduler: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.notificationsStore.startPolling(fetchImmediately: false)
+            }
+
         startNetworkMonitor()
 
         notificationsStore.onStateChange = { [weak self] in
@@ -105,6 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// a newly recorded one is rejected by RegisterEventHotKey.
     private var lastWorkingAccelerator: HotKeyAccelerator?
     private var accountsObserver: AnyCancellable?
+    private var fetchIntervalObserver: AnyCancellable?
     private let pathMonitor = NWPathMonitor()
 
     private func updateHotKey(enabled: Bool, accelerator: HotKeyAccelerator) {

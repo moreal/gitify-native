@@ -53,6 +53,12 @@ final class SettingsStore: ObservableObject {
     @Published var hotKeyError: String?
     /// Polling interval in seconds. Gitify: default 60, min 60, max 3600.
     @Published var fetchInterval: TimeInterval { didSet { save() } }
+
+    /// Whole-minute view of fetchInterval for the Settings stepper.
+    var fetchIntervalMinutes: Int {
+        get { Int(fetchInterval) / 60 }
+        set { fetchInterval = TimeInterval(newValue * 60) }
+    }
     /// Device Flow OAuth client ID. Defaults to Gitify's public development client ID.
     @Published var oauthClientID: String { didSet { save() } }
     @Published var theme: AppTheme { didSet { save() } }
