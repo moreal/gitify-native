@@ -43,6 +43,8 @@ final class SettingsStore: ObservableObject {
     /// White idle icon instead of the template icon (for wallpaper-tinted menu bars).
     @Published var useAlternateIdleIcon: Bool { didSet { save() } }
     @Published var openAtStartup: Bool { didSet { save() } }
+    /// Global open-Gitify hotkey (⌘⇧G) enabled.
+    @Published var keyboardShortcut: Bool { didSet { save() } }
     /// Polling interval in seconds. Gitify: default 60, min 60, max 3600.
     @Published var fetchInterval: TimeInterval { didSet { save() } }
     /// Device Flow OAuth client ID. Defaults to Gitify's public development client ID.
@@ -71,6 +73,7 @@ final class SettingsStore: ObservableObject {
         useUnreadActiveIcon = defaults.object(forKey: "useUnreadActiveIcon") as? Bool ?? true
         useAlternateIdleIcon = defaults.object(forKey: "useAlternateIdleIcon") as? Bool ?? false
         openAtStartup = defaults.object(forKey: "openAtStartup") as? Bool ?? false
+        keyboardShortcut = defaults.object(forKey: "keyboardShortcut") as? Bool ?? true
         fetchInterval = max(60, defaults.object(forKey: "fetchInterval") as? TimeInterval ?? 60)
         oauthClientID = defaults.string(forKey: "oauthClientID") ?? Self.defaultOAuthClientID
         theme = AppTheme(rawValue: defaults.string(forKey: "theme") ?? "") ?? .system
@@ -92,6 +95,7 @@ final class SettingsStore: ObservableObject {
         defaults.set(useUnreadActiveIcon, forKey: "useUnreadActiveIcon")
         defaults.set(useAlternateIdleIcon, forKey: "useAlternateIdleIcon")
         defaults.set(openAtStartup, forKey: "openAtStartup")
+        defaults.set(keyboardShortcut, forKey: "keyboardShortcut")
         defaults.set(fetchInterval, forKey: "fetchInterval")
         defaults.set(oauthClientID, forKey: "oauthClientID")
         defaults.set(theme.rawValue, forKey: "theme")

@@ -91,7 +91,7 @@ Upstream reference: `src/renderer/stores/useNotificationActionFailuresStore.ts`,
 
 ## 5. Global hotkey: disable toggle + custom recorder
 
-- [ ] (commit 1) Settings toggle "Global shortcut" (default on) that
+- [x] (commit 1) Settings toggle "Global shortcut" (default on) that
       registers/unregisters the ⌘⇧G hotkey (`Sources/App/GlobalHotKey.swift`).
 - [ ] (commit 2) Key recorder in Settings to change the accelerator: capture via a
       local `NSEvent` monitor, require ⌘ plus a non-modifier key, persist keycode +

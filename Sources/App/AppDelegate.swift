@@ -75,8 +75,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
         }
 
-        hotKey = GlobalHotKey(keyCode: UInt32(kVK_ANSI_G), modifiers: UInt32(cmdKey | shiftKey)) { [weak self] in
-            self?.statusItemController.togglePopover()
+        // Fires immediately with the stored value, registering at launch.
+        // removeDuplicates: a live global hotkey should not be torn down and
+        // re-registered by same-value settings writes.
+        hotKeyObserver = settings.$keyboardShortcut.removeDuplicates().sink { [weak self] enabled in
+            self?.updateHotKey(enabled: enabled)
         }
 
         notificationsStore.startPolling()
@@ -94,8 +97,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private var hotKey: GlobalHotKey?
+    private var hotKeyObserver: AnyCancellable?
     private var accountsObserver: AnyCancellable?
     private let pathMonitor = NWPathMonitor()
+
+    private func updateHotKey(enabled: Bool) {
+        hotKey = nil // deinit unregisters the previous binding
+        guard enabled else { return }
+        hotKey = GlobalHotKey(keyCode: UInt32(kVK_ANSI_G), modifiers: UInt32(cmdKey | shiftKey)) { [weak self] in
+            self?.statusItemController.togglePopover()
+        }
+    }
 
     @objc private func systemDidWake() {
         Task { await notificationsStore.fetch() }

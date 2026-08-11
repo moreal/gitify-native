@@ -55,6 +55,7 @@ struct SettingsView: View {
                     Toggle("Green icon when unread", isOn: $settings.useUnreadActiveIcon)
                     Toggle("White idle icon", isOn: $settings.useAlternateIdleIcon)
                         .onChange(of: settings.useAlternateIdleIcon) { _, _ in refreshTray() }
+                    Toggle("Global shortcut (⌘⇧G)", isOn: $settings.keyboardShortcut)
                     Toggle("Open at login", isOn: $settings.openAtStartup)
                         .onChange(of: settings.openAtStartup) { _, enabled in
                             updateLoginItem(enabled: enabled)
