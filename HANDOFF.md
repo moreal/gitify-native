@@ -117,7 +117,7 @@ Upstream reference: `src/renderer/utils/notifications/pollInterval.ts`,
 
 - [x] (commit 1) Row author avatars (from enriched author; fall back to type icon),
       click → open the author's profile. Requires enrichment to also capture `avatar_url`.
-- [ ] (commit 2) Repository header: owner avatar + make the repo name a button that
+- [x] (commit 2) Repository header: owner avatar + make the repo name a button that
       opens the repository in the browser.
 - [ ] (commit 3) Collapse/expand per repository section (chevron, matching upstream's
       click-to-collapse header), and per account section when account headers show.

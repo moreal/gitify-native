@@ -108,21 +108,21 @@ struct NotificationsListView: View {
 
     private func repositorySections(_ group: AccountNotifications) -> some View {
         // Preserve first-seen repository order, like Gitify's groupNotificationsByRepository.
-        var repoOrder: [String] = []
+        var repoOrder: [GHNotification.Repository] = []
         var byRepo: [String: [GHNotification]] = [:]
         for item in group.notifications {
             let key = item.repository.fullName
-            if byRepo[key] == nil { repoOrder.append(key) }
+            if byRepo[key] == nil { repoOrder.append(item.repository) }
             byRepo[key, default: []].append(item)
         }
-        return ForEach(repoOrder, id: \.self) { repo in
+        return ForEach(repoOrder, id: \.fullName) { repository in
             Section {
-                ForEach(byRepo[repo] ?? []) { item in
+                ForEach(byRepo[repository.fullName] ?? []) { item in
                     NotificationRow(notification: item, account: group.account, showRepo: false)
                     Divider().padding(.leading, 12)
                 }
             } header: {
-                repoHeader(repo, account: group.account)
+                repoHeader(repository, account: group.account)
             }
         }
     }
@@ -179,21 +179,30 @@ struct NotificationsListView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func repoHeader(_ fullName: String, account: Account) -> some View {
+    private func repoHeader(_ repository: GHNotification.Repository, account: Account) -> some View {
         HStack {
-            Text(fullName)
-                .font(.subheadline.bold())
-                .lineLimit(1)
+            AvatarView(url: URL(string: repository.owner.avatarUrl), size: 14)
+            Button {
+                if let url = URL(string: repository.htmlUrl) {
+                    NSWorkspace.shared.open(url)
+                }
+            } label: {
+                Text(repository.fullName)
+                    .font(.subheadline.bold())
+                    .lineLimit(1)
+            }
+            .buttonStyle(.plain)
+            .help("Open repository")
             Spacer()
             Button {
-                Task { await notificationsStore.markRepoDone(fullName: fullName, account: account) }
+                Task { await notificationsStore.markRepoDone(fullName: repository.fullName, account: account) }
             } label: {
                 Image(systemName: "checkmark")
             }
             .buttonStyle(.borderless)
             .help("Mark repository as done")
             Button {
-                Task { await notificationsStore.markRepoRead(fullName: fullName, account: account) }
+                Task { await notificationsStore.markRepoRead(fullName: repository.fullName, account: account) }
             } label: {
                 Image(systemName: "eye.slash")
             }
