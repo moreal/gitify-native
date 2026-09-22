@@ -31,6 +31,12 @@ class LandingPageParser(HTMLParser):
         self.links: set[str] = set()
         self.stylesheets: set[str] = set()
         self.script_count = 0
+        self.feature_icons: dict[str, bool] = {}
+        self._article_title = ""
+        self._article_has_svg_icon = False
+        self._in_article = False
+        self._in_article_title = False
+        self._in_feature_icon = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
@@ -44,6 +50,31 @@ class LandingPageParser(HTMLParser):
             self.stylesheets.add(attributes.get("href") or "")
         elif tag == "script":
             self.script_count += 1
+        elif tag == "article":
+            self._in_article = True
+            self._article_title = ""
+            self._article_has_svg_icon = False
+        elif self._in_article and tag == "h3":
+            self._in_article_title = True
+        elif self._in_article and tag == "span" and "feature-icon" in (
+            attributes.get("class") or ""
+        ).split():
+            self._in_feature_icon = True
+        elif self._in_feature_icon and tag == "svg":
+            self._article_has_svg_icon = True
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "h3":
+            self._in_article_title = False
+        elif tag == "span":
+            self._in_feature_icon = False
+        elif tag == "article" and self._in_article:
+            self.feature_icons[self._article_title.strip()] = self._article_has_svg_icon
+            self._in_article = False
+
+    def handle_data(self, data: str) -> None:
+        if self._in_article_title:
+            self._article_title += data
 
 
 class ReleaseDistributionTests(unittest.TestCase):
@@ -116,6 +147,13 @@ class LandingPageTests(unittest.TestCase):
         self.assertRegex(
             step_number_rule.group("declarations"), r"color:\s*var\(--page\);"
         )
+
+    def test_native_alerts_uses_a_vector_icon(self) -> None:
+        parser = LandingPageParser()
+        parser.feed(INDEX.read_text())
+
+        self.assertIn("Native alerts", parser.feature_icons)
+        self.assertTrue(parser.feature_icons["Native alerts"])
 
     def test_pages_workflow_deploys_only_site_directory(self) -> None:
         self.assertTrue(PAGES_WORKFLOW.exists(), "Pages workflow must exist")
