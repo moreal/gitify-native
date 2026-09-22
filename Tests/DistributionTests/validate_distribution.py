@@ -18,6 +18,7 @@ APP_ICON = SITE_ROOT / "app-icon.png"
 APP_SCREENSHOT = SITE_ROOT / "assets/gitify-popover.png"
 PAGES_WORKFLOW = ROOT / ".github/workflows/pages.yml"
 SCREENSHOT_EXPORT_SCRIPT = ROOT / "scripts/export-landing-screenshot.sh"
+LANDING_SCREENSHOT_RENDERER = ROOT / "Sources/UI/LandingScreenshotRenderer.swift"
 
 
 class LandingPageParser(HTMLParser):
@@ -112,10 +113,16 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn("runs-on: macos-15", workflow)
         self.assertIn("testCaptureLandingScreenshot", workflow)
         self.assertTrue(SCREENSHOT_EXPORT_SCRIPT.exists())
-        self.assertIn(
-            "xcresulttool export attachments",
-            SCREENSHOT_EXPORT_SCRIPT.read_text(),
-        )
+        export_script = SCREENSHOT_EXPORT_SCRIPT.read_text()
+        self.assertIn("xcresulttool export attachments", export_script)
+        self.assertIn("EXPECTED_PIXEL_WIDTH=840", export_script)
+        self.assertIn("EXPECTED_PIXEL_HEIGHT=1120", export_script)
+        self.assertNotIn("--cropToHeightWidth", export_script)
+        self.assertTrue(LANDING_SCREENSHOT_RENDERER.exists())
+        renderer = LANDING_SCREENSHOT_RENDERER.read_text()
+        self.assertIn("cacheDisplay", renderer)
+        self.assertIn("pixelsWide: 840", renderer)
+        self.assertIn("pixelsHigh: 1120", renderer)
         self.assertIn("path: docs/site", workflow)
         self.assertIn("contents: read", workflow)
         self.assertIn("pages: write", workflow)

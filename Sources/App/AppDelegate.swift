@@ -76,6 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         notificationsStore.onStateChange = { [weak self] in
             self?.statusItemController.refreshIcon()
+            self?.statusItemController.captureLandingScreenshotIfReady()
         }
         notificationsStore.onNewNotifications = { [weak self] fresh in
             self?.deliverSystemNotifications(for: fresh)

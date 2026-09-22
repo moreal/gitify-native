@@ -29,20 +29,17 @@ fi
 SCREENSHOT="$(find "$EXPORT_DIR" -type f -name '*.png' -print -quit)"
 PIXEL_WIDTH="$(sips -g pixelWidth "$SCREENSHOT" | awk '/pixelWidth/ { print $2 }')"
 PIXEL_HEIGHT="$(sips -g pixelHeight "$SCREENSHOT" | awk '/pixelHeight/ { print $2 }')"
+EXPECTED_PIXEL_WIDTH=840
+EXPECTED_PIXEL_HEIGHT=1120
 
-# XCUI captures the 446×586 pt popover frame including its arrow and shadow.
-# Center-crop to the app's 420×560 pt content at either 1× or 2× scale.
-if [ "$((PIXEL_WIDTH * 586))" -ne "$((PIXEL_HEIGHT * 446))" ]; then
-  echo "unexpected screenshot dimensions: ${PIXEL_WIDTH}x${PIXEL_HEIGHT}" >&2
-  exit 1
-fi
-SCALE="$((PIXEL_WIDTH / 446))"
-if [ "$SCALE" -lt 1 ] || [ "$((SCALE * 446))" -ne "$PIXEL_WIDTH" ]; then
-  echo "unsupported screenshot scale for width $PIXEL_WIDTH" >&2
+# The app renders its real 420×560 pt SwiftUI popover at a fixed 2× scale.
+# Reject 1× CI captures instead of silently shipping a blurry landing image.
+if [ "$PIXEL_WIDTH" -ne "$EXPECTED_PIXEL_WIDTH" ] || \
+   [ "$PIXEL_HEIGHT" -ne "$EXPECTED_PIXEL_HEIGHT" ]; then
+  echo "expected ${EXPECTED_PIXEL_WIDTH}x${EXPECTED_PIXEL_HEIGHT} screenshot, got ${PIXEL_WIDTH}x${PIXEL_HEIGHT}" >&2
   exit 1
 fi
 
 mkdir -p "$(dirname "$OUTPUT")"
-sips --cropToHeightWidth "$((560 * SCALE))" "$((420 * SCALE))" \
-  "$SCREENSHOT" --out "$OUTPUT" >/dev/null
-echo "wrote $OUTPUT (${PIXEL_WIDTH}x${PIXEL_HEIGHT} source, ${SCALE}x scale)"
+cp "$SCREENSHOT" "$OUTPUT"
+echo "wrote $OUTPUT (${PIXEL_WIDTH}x${PIXEL_HEIGHT}, app-rendered at 2x)"

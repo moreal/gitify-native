@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 
 /// Regression tests for the menu bar popover.
@@ -12,6 +13,7 @@ import XCTest
 /// isolates settings/accounts from the developer's real data.
 final class PopoverStabilityUITests: XCTestCase {
     private var app: XCUIApplication!
+    private var landingScreenshotURL: URL?
 
     override func setUp() {
         continueAfterFailure = false
@@ -19,6 +21,10 @@ final class PopoverStabilityUITests: XCTestCase {
         app.launchArguments = ["--uitest-mock-github", "--uitest-open-popover"]
         if name.contains("testCaptureLandingScreenshot") {
             app.launchArguments.append("--uitest-landing-screenshot")
+            let url = URL(fileURLWithPath: "/tmp/gitify-popover-\(UUID().uuidString).png")
+            try? FileManager.default.removeItem(at: url)
+            landingScreenshotURL = url
+            app.launchEnvironment["GITIFY_LANDING_SCREENSHOT_PATH"] = url.path
         }
         app.launch()
     }
@@ -26,6 +32,10 @@ final class PopoverStabilityUITests: XCTestCase {
     override func tearDown() {
         app.terminate()
         app = nil
+        if let landingScreenshotURL {
+            try? FileManager.default.removeItem(at: landingScreenshotURL)
+        }
+        landingScreenshotURL = nil
     }
 
     func testPopoverShowsMockNotifications() {
@@ -51,7 +61,25 @@ final class PopoverStabilityUITests: XCTestCase {
             "generic regression fixtures should not appear in the landing screenshot"
         )
 
-        let attachment = XCTAttachment(screenshot: popover.screenshot())
+        let url = try! XCTUnwrap(landingScreenshotURL)
+        let rendered = expectation(
+            for: NSPredicate { _, _ in FileManager.default.fileExists(atPath: url.path) },
+            evaluatedWith: url
+        )
+        wait(for: [rendered], timeout: 10)
+
+        let representation = try! XCTUnwrap(NSImage(contentsOf: url)?.representations.first)
+        XCTAssertEqual(representation.pixelsWide, 840)
+        XCTAssertEqual(representation.pixelsHigh, 1120)
+        let fileSize = try! XCTUnwrap(
+            (try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber
+        )
+        XCTAssertGreaterThan(
+            fileSize.intValue, 100_000,
+            "rendered screenshot should contain the full notification list, not an empty view"
+        )
+
+        let attachment = XCTAttachment(contentsOfFile: url)
         attachment.name = "gitify-popover"
         attachment.lifetime = .keepAlways
         add(attachment)

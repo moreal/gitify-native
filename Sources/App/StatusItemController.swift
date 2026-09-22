@@ -11,6 +11,7 @@ final class StatusItemController: NSObject {
     private let accountsStore: AccountsStore
     private let notificationsStore: NotificationsStore
     private let updateChecker: UpdateChecker
+    private var didCaptureLandingScreenshot = false
     /// Count title deferred while the popover is open: applying it would resize
     /// the variable-length status item and make AppKit re-anchor the popover,
     /// visibly shifting it sideways.
@@ -102,8 +103,28 @@ final class StatusItemController: NSObject {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
             NSApp.activate()
+            DispatchQueue.main.async { [weak self] in
+                self?.captureLandingScreenshotIfReady()
+            }
             // Refetch on open, like Gitify's refetch-on-window-focus.
             Task { await notificationsStore.fetch() }
+        }
+    }
+
+    func captureLandingScreenshotIfReady() {
+        guard !didCaptureLandingScreenshot,
+              popover.isShown,
+              !notificationsStore.isFetching,
+              notificationsStore.unreadCount == UITestMock.notificationCount,
+              let outputURL = UITestMock.landingScreenshotOutputURL,
+              let view = popover.contentViewController?.view
+        else { return }
+
+        do {
+            try LandingScreenshotRenderer.write(view: view, to: outputURL)
+            didCaptureLandingScreenshot = true
+        } catch {
+            NSLog("Failed to capture landing screenshot: \(error)")
         }
     }
 

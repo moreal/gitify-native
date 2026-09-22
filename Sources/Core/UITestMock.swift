@@ -8,6 +8,13 @@ import Foundation
 enum UITestMock {
     static let isActive = ProcessInfo.processInfo.arguments.contains("--uitest-mock-github")
     static let isLandingScreenshot = ProcessInfo.processInfo.arguments.contains("--uitest-landing-screenshot")
+    static var landingScreenshotOutputURL: URL? {
+        guard isLandingScreenshot,
+              let path = ProcessInfo.processInfo.environment["GITIFY_LANDING_SCREENSHOT_PATH"],
+              !path.isEmpty
+        else { return nil }
+        return URL(fileURLWithPath: path)
+    }
 
     /// Opens the popover shortly after launch. Synthesized menu bar clicks are
     /// unreliable (fullscreen spaces, crowded menu bars, the notch), so UI
