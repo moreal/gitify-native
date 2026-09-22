@@ -116,6 +116,12 @@ class ReleaseDistributionTests(unittest.TestCase):
         self.assertIn("https://github.com/sparkle-project/Sparkle", project)
         self.assertIn("exactVersion: 2.10.0", project)
 
+    def test_release_publishes_signed_sparkle_appcast(self) -> None:
+        self.assertIn("scripts/generate-sparkle-appcast.sh", self.release)
+        self.assertIn("secrets.SPARKLE_ED_PRIVATE_KEY", self.release)
+        self.assertIn("*/Sparkle/bin/generate_appcast", self.release)
+        self.assertIn('"appcast.xml"', self.release)
+
     def test_readme_links_to_latest_dmg(self) -> None:
         self.assertIn(STABLE_DMG_URL, self.readme)
 
