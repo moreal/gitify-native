@@ -28,8 +28,12 @@ if [ ! -f "$ZIP_PATH" ]; then
 fi
 
 STAGING_DIR=$(mktemp -d "${TMPDIR:-/tmp}/gitify-appcast.XXXXXX")
+TEMP_OUTPUT=""
 cleanup() {
   rm -rf "$STAGING_DIR"
+  if [ -n "$TEMP_OUTPUT" ]; then
+    rm -f "$TEMP_OUTPUT"
+  fi
 }
 trap cleanup EXIT
 

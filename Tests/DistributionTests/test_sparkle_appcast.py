@@ -53,7 +53,13 @@ signature = "" if mode == "unsigned" else ' sparkle:edSignature="test-signature"
     def tearDown(self) -> None:
         self.temp.cleanup()
 
-    def run_script(self, *, mode: str = "valid", include_key: bool = True):
+    def run_script(
+        self,
+        *,
+        mode: str = "valid",
+        include_key: bool = True,
+        fail_final_move: bool = False,
+    ):
         env = os.environ.copy()
         env.update({
             "SPARKLE_GENERATE_APPCAST": str(self.generator),
@@ -65,6 +71,13 @@ signature = "" if mode == "unsigned" else ' sparkle:edSignature="test-signature"
             env["SPARKLE_ED_PRIVATE_KEY"] = "private-test-key"
         else:
             env.pop("SPARKLE_ED_PRIVATE_KEY", None)
+        if fail_final_move:
+            fake_bin = self.dir / "fake-bin"
+            fake_bin.mkdir()
+            fake_mv = fake_bin / "mv"
+            fake_mv.write_text("#!/bin/sh\nexit 1\n")
+            fake_mv.chmod(fake_mv.stat().st_mode | stat.S_IXUSR)
+            env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
         return subprocess.run(
             [str(SCRIPT), str(self.zip), "1.2.3", str(self.output)],
             cwd=ROOT,
@@ -106,6 +119,11 @@ signature = "" if mode == "unsigned" else ' sparkle:edSignature="test-signature"
         result = self.run_script(mode="wrong-url")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("unexpected enclosure URL", result.stderr)
+
+    def test_removes_temporary_output_when_final_move_fails(self) -> None:
+        result = self.run_script(fail_final_move=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(list(self.dir.glob(".appcast.*")), [])
 
 
 if __name__ == "__main__":
