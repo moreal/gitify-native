@@ -1,6 +1,6 @@
 # Gitify Native
 
-A lightweight, unofficial native macOS port of [Gitify](https://gitify.io/) — GitHub notifications on your menu bar — written in Swift/SwiftUI with zero third-party dependencies (no Electron). Not affiliated with the upstream [gitify-app](https://github.com/gitify-app/gitify) project.
+A lightweight, unofficial native macOS port of [Gitify](https://gitify.io/) — GitHub notifications on your menu bar — written in Swift/SwiftUI with no Electron. [Sparkle](https://sparkle-project.org/) provides native software updates. Not affiliated with the upstream [gitify-app](https://github.com/gitify-app/gitify) project.
 
 Visit [moreal.github.io/gitify-native](https://moreal.github.io/gitify-native/) or [download the latest DMG](https://github.com/moreal/gitify-native/releases/latest/download/Gitify.dmg).
 
@@ -59,19 +59,25 @@ default; this can be disabled at any time in Settings.
 
 ### Auto-update
 
-The app checks GitHub Releases for a newer version on launch, daily, and on
-demand (tray right-click menu or the Settings footer), and shows a system
-notification when one appears. Installing downloads the release `.zip`,
-verifies its SHA-256 checksum and that its Developer ID signature matches the
-running app's team, swaps the bundle in place, and relaunches. Builds where an
-in-place swap isn't possible (ad-hoc/dev builds, translocated or read-only
-locations) open the release page in the browser instead.
+Sparkle checks the signed `appcast.xml` attached to the latest GitHub Release
+automatically and on demand from the tray right-click menu or Settings footer.
+When a newer version is available, Sparkle presents its standard update window;
+for background checks Gitify also posts a system notification so a dockless
+menu-bar app does not hide the alert behind other applications. After
+confirmation Sparkle downloads the versioned release ZIP, verifies both its
+Ed25519 update signature and Developer ID code signature, installs it safely,
+and relaunches Gitify. GitHub Releases remains the source of truth for both the
+feed and update archives.
 
 ### Code signing
 
 By default releases are **ad-hoc signed**: macOS Gatekeeper reports downloads as "damaged", and the first launch requires clearing quarantine (`xattr -dr com.apple.quarantine /Applications/Gitify.app`). This is an Apple policy limitation — passing Gatekeeper requires a paid Apple Developer membership; no CI configuration can work around it.
 
-To ship properly signed and notarized releases, configure all five repository secrets — the workflow then switches to Developer ID signing with hardened runtime, notarizes with `notarytool`, and staples the ticket:
+To ship properly signed and notarized releases, configure the five Apple
+repository secrets below. The workflow then switches to Developer ID signing
+with hardened runtime, notarizes with `notarytool`, and staples the ticket.
+`SPARKLE_ED_PRIVATE_KEY` is always required because unsigned update archives
+are never published:
 
 | Secret | Value |
 | --- | --- |
@@ -80,8 +86,32 @@ To ship properly signed and notarized releases, configure all five repository se
 | `APPLE_TEAM_ID` | 10-character team ID |
 | `APPLE_ID` | Apple ID email used for notarization |
 | `APPLE_APP_SPECIFIC_PASSWORD` | app-specific password from appleid.apple.com |
+| `SPARKLE_ED_PRIVATE_KEY` | Sparkle Ed25519 private key exported by `generate_keys` |
 
-If any secret is missing, the workflow falls back to ad-hoc signing.
+If an Apple secret is missing, the workflow falls back to ad-hoc code signing.
+If the Sparkle secret is missing, appcast generation fails and the release is
+not published.
+
+Generate the Sparkle key once after resolving the pinned package. The private
+key remains in the login Keychain under account `dev.moreal.gitify`; only the
+public key printed by the tool belongs in `project.yml` as `SUPublicEDKey`:
+
+```sh
+xcodegen generate
+xcodebuild -resolvePackageDependencies \
+  -project Gitify.xcodeproj -scheme Gitify -derivedDataPath build
+
+SPARKLE_KEYS=build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys
+"$SPARKLE_KEYS" --account dev.moreal.gitify
+umask 077
+"$SPARKLE_KEYS" --account dev.moreal.gitify -x /secure/path/gitify-sparkle-key
+gh secret set SPARKLE_ED_PRIVATE_KEY < /secure/path/gitify-sparkle-key
+```
+
+Store the exported private key in an encrypted password manager or offline
+backup and remove any unencrypted temporary copy. Never commit it. GitHub does
+not allow secret values to be downloaded again, and losing both the Keychain
+item and backup makes future key rotation substantially harder.
 
 ## Features
 

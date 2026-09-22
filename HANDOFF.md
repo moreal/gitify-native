@@ -22,7 +22,8 @@ this file as part of the same commit that implements them.
 ## Project constraints
 
 - **Scope**: GitHub only (no Gitea/Bitbucket). Auth = PAT + Device Flow only.
-- **Zero third-party dependencies.** macOS 14+, Swift 5, XcodeGen (`project.yml`).
+- **Dependencies**: macOS 14+, Swift 5, XcodeGen (`project.yml`), and Sparkle
+  2.10.0 for software updates. Avoid adding dependencies for unrelated features.
 - **Native look**: system semantic colors and materials (see `Sources/UI/StatePalette.swift`),
   never GitHub web (Primer) hex colors. Grouped Forms use `.scrollContentBackground(.hidden)`.
 - `gitify/` is a read-only local reference checkout of upstream (gitignored). Cite it,
@@ -161,13 +162,13 @@ Upstream reference: `src/main/menu.ts`, `src/main/lifecycle/reset.ts`.
 
 ## 11. Update checker (user-requested 2026-08-12; was out of scope)
 
-- [x] Check GitHub Releases (`releases/latest`) for a newer version — on launch,
-      daily, and manually (tray menu + Settings footer) — deliver a system banner
-      when one appears, and install in place: download the release `.zip`, verify
-      its SHA-256 checksum and Developer ID signature (same team as the running
-      app), swap the bundle, relaunch. Dev/ad-hoc, translocated, or read-only
-      installs fall back to opening the release page. Zero-dep (no Sparkle):
-      `Sources/App/UpdateChecker.swift`.
+- [x] Use Sparkle 2.10.0 through `UpdateController` for automatic and manual
+      checks (tray menu + Settings footer), standard update UI, Ed25519 archive
+      verification, Developer ID verification, safe installation, and relaunch.
+      The feed is the `appcast.xml` asset at
+      `releases/latest/download/appcast.xml`; the release workflow generates it
+      with `scripts/generate-sparkle-appcast.sh` and keeps publishing the
+      versioned ZIP so the pre-Sparkle updater can install the migration release.
 
 Upstream reference: `src/main/updater.ts`, `src/main/menu.ts` (update menu items).
 
