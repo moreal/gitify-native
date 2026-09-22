@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 from pathlib import Path
-from html.parser import HTMLParser
+import re
 import struct
 import unittest
+from html.parser import HTMLParser
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -104,6 +105,17 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn("@media (prefers-color-scheme: dark)", css)
         self.assertIn("@media (prefers-reduced-motion: reduce)", css)
         self.assertNotIn("transition: all", css)
+
+    def test_install_step_numbers_use_the_page_color(self) -> None:
+        css = STYLES.read_text()
+        step_number_rule = re.search(
+            r"\.install-steps li > span\s*\{(?P<declarations>[^}]*)\}", css
+        )
+
+        self.assertIsNotNone(step_number_rule)
+        self.assertRegex(
+            step_number_rule.group("declarations"), r"color:\s*var\(--page\);"
+        )
 
     def test_pages_workflow_deploys_only_site_directory(self) -> None:
         self.assertTrue(PAGES_WORKFLOW.exists(), "Pages workflow must exist")
