@@ -2,7 +2,6 @@ import AppKit
 import Carbon.HIToolbox
 import Combine
 import Network
-import ServiceManagement
 import UserNotifications
 
 @main
@@ -21,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var notificationsStore: NotificationsStore!
     private var updateChecker: UpdateChecker!
     private var statusItemController: StatusItemController!
+    private var loginItemController: LoginItemController!
     private var themeObserver: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -36,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             filters: filtersStore
         )
         updateChecker = UpdateChecker()
+        loginItemController = LoginItemController()
         statusItemController = StatusItemController(
             settings: settings,
             accountsStore: accountsStore,
@@ -57,7 +58,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Login-item registration must track the setting no matter which UI
         // (a toggle, a settings reset) changes it.
         loginItemObserver = settings.$openAtStartup
-            .dropFirst()
             .removeDuplicates()
             .sink { [weak self] enabled in self?.updateLoginItem(enabled: enabled) }
 
@@ -138,11 +138,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateLoginItem(enabled: Bool) {
         do {
-            if enabled {
-                try SMAppService.mainApp.register()
-            } else {
-                try SMAppService.mainApp.unregister()
-            }
+            try loginItemController.reconcile(enabled: enabled)
         } catch {
             NSLog("Failed to update login item: \(error)")
         }

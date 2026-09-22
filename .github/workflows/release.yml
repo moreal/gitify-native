@@ -145,13 +145,14 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           APP="build/Build/Products/Release/Gitify.app"
+          DMG="Gitify.dmg"
           codesign --verify --deep "$APP"
           ditto -c -k --keepParent "$APP" "Gitify-$VERSION.zip"
           DMG_ROOT="$RUNNER_TEMP/dmg-root"
           mkdir "$DMG_ROOT"
           ditto "$APP" "$DMG_ROOT/Gitify.app"
           ln -s /Applications "$DMG_ROOT/Applications"
-          hdiutil create -volname "Gitify" -srcfolder "$DMG_ROOT" -ov -format UDZO "Gitify-$VERSION.dmg"
+          hdiutil create -volname "Gitify" -srcfolder "$DMG_ROOT" -ov -format UDZO "$DMG"
 
       - name: Sign, notarize, and staple DMG
         if: env.SIGNED == 'true'
@@ -159,9 +160,8 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          DMG="Gitify-$VERSION.dmg"
+          DMG="Gitify.dmg"
           codesign --force --sign "Developer ID Application" --timestamp "$DMG"
           SUBMISSION=$(xcrun notarytool submit "$DMG" \
             --apple-id "$APPLE_ID" \
@@ -184,12 +184,27 @@ jobs:
           xcrun stapler staple "$DMG"
           spctl --assess --type open --context context:primary-signature -vv "$DMG"
 
+      - name: Verify DMG
+        run: |
+          DMG="Gitify.dmg"
+          MOUNT_POINT="$RUNNER_TEMP/gitify-dmg"
+          hdiutil verify "$DMG"
+          mkdir "$MOUNT_POINT"
+          cleanup() {
+            hdiutil detach "$MOUNT_POINT" || true
+          }
+          trap cleanup EXIT
+          hdiutil attach "$DMG" -readonly -nobrowse -mountpoint "$MOUNT_POINT"
+          test -d "$MOUNT_POINT/Gitify.app"
+          test -L "$MOUNT_POINT/Applications"
+          test "$(readlink "$MOUNT_POINT/Applications")" = "/Applications"
+
       - name: Checksums
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           shasum -a 256 "Gitify-$VERSION.zip" | tee "Gitify-$VERSION.zip.sha256"
-          shasum -a 256 "Gitify-$VERSION.dmg" | tee "Gitify-$VERSION.dmg.sha256"
+          shasum -a 256 "Gitify.dmg" | tee "Gitify.dmg.sha256"
 
       - name: Create GitHub Release
         env:
@@ -200,7 +215,7 @@ jobs:
             cat > release-notes.md <<'EOF'
           ### Installation
 
-          1. Download the `Gitify-*.dmg` asset below and open it.
+          1. Download `Gitify.dmg` below and open it.
           2. Drag `Gitify.app` into `Applications` and launch it.
 
           A `Gitify-*.zip` containing the same app is also attached. Both are
@@ -211,7 +226,7 @@ jobs:
             cat > release-notes.md <<'EOF'
           ### Installation
 
-          1. Download the `Gitify-*.dmg` asset below and open it (a `.zip` with
+          1. Download `Gitify.dmg` below and open it (a `.zip` with
              the same app is also attached).
           2. Drag `Gitify.app` into `Applications`.
           3. This build is ad-hoc signed (not notarized), so macOS will report it as
@@ -225,8 +240,8 @@ jobs:
           EOF
           fi
           gh release create "v$VERSION" \
-            "Gitify-$VERSION.dmg" \
-            "Gitify-$VERSION.dmg.sha256" \
+            "Gitify.dmg" \
+            "Gitify.dmg.sha256" \
             "Gitify-$VERSION.zip" \
             "Gitify-$VERSION.zip.sha256" \
             --title "Gitify Native v$VERSION" \

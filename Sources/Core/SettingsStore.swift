@@ -89,7 +89,7 @@ final class SettingsStore: ObservableObject {
         showCountInTray = defaults.object(forKey: "showCountInTray") as? Bool ?? true
         useUnreadActiveIcon = defaults.object(forKey: "useUnreadActiveIcon") as? Bool ?? true
         useAlternateIdleIcon = defaults.object(forKey: "useAlternateIdleIcon") as? Bool ?? false
-        openAtStartup = defaults.object(forKey: "openAtStartup") as? Bool ?? false
+        openAtStartup = defaults.object(forKey: "openAtStartup") as? Bool ?? true
         keyboardShortcut = defaults.object(forKey: "keyboardShortcut") as? Bool ?? true
         if let keyCode = defaults.object(forKey: "openGitifyShortcut.keyCode") as? Int,
            let modifiers = defaults.object(forKey: "openGitifyShortcut.modifiers") as? Int {
@@ -122,7 +122,7 @@ final class SettingsStore: ObservableObject {
         showCountInTray = true
         useUnreadActiveIcon = true
         useAlternateIdleIcon = false
-        openAtStartup = false
+        openAtStartup = true
         keyboardShortcut = true
         openGitifyShortcut = .default
         hotKeyError = nil

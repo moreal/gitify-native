@@ -2,6 +2,8 @@
 
 A lightweight, unofficial native macOS port of [Gitify](https://gitify.io/) — GitHub notifications on your menu bar — written in Swift/SwiftUI with zero third-party dependencies (no Electron). Not affiliated with the upstream [gitify-app](https://github.com/gitify-app/gitify) project.
 
+Visit [moreal.github.io/gitify-native](https://moreal.github.io/gitify-native/) or [download the latest DMG](https://github.com/moreal/gitify-native/releases/latest/download/Gitify.dmg).
+
 For development, the upstream Electron source can be cloned into `gitify/` for reference (the directory is gitignored).
 
 ## Requirements
@@ -25,6 +27,10 @@ Tagged releases are built and published automatically by [GitHub Actions](.githu
 - run the **Release** workflow manually from the Actions tab with a version number (it creates the tag for you).
 
 The version baked into the app comes from the tag.
+
+For installation, open `Gitify.dmg`, drag `Gitify.app` onto the Applications
+shortcut, then launch Gitify from Applications. New installations open at login by
+default; this can be disabled at any time in Settings.
 
 ### Auto-update
 

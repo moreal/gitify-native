@@ -40,6 +40,7 @@ enum UITestMock {
         defaults.set(false, forKey: "detailedNotifications")
         defaults.set(false, forKey: "showNotificationBanners")
         defaults.set(false, forKey: "playSound")
+        defaults.set(false, forKey: "openAtStartup")
         defaults.set(false, forKey: "showAccountHeader")
         defaults.set(3600.0, forKey: "fetchInterval")
         return defaults

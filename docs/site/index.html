@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="GitHub notifications in your Mac menu bar. Gitify Native is a lightweight SwiftUI app for macOS.">
+    <meta name="theme-color" content="#f5f7fa">
+    <title>Gitify Native — GitHub notifications for macOS</title>
+    <link rel="icon" href="app-icon.png">
+    <link rel="preload" as="image" href="app-icon.png">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="Gitify Native home">
+        <img src="app-icon.png" width="40" height="40" alt="Gitify Native app icon">
+        <span>Gitify Native</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="#features">Features</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/moreal/gitify-native">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Native GitHub notifications for macOS</p>
+          <h1 id="hero-title">Keep up with GitHub.<br>Stay in your flow.</h1>
+          <p class="hero-summary">A fast, lightweight menu bar app built with SwiftUI. See what needs your attention without living in a browser tab.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://github.com/moreal/gitify-native/releases/latest/download/Gitify.dmg">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"/></svg>
+              Download for macOS
+            </a>
+            <a class="button button-secondary" href="https://github.com/moreal/gitify-native">
+              View source
+            </a>
+          </div>
+          <p class="requirement">Universal app for Apple silicon and Intel · macOS 14+</p>
+        </div>
+
+        <div class="app-demo" role="img" aria-label="Gitify Native menu bar panel showing GitHub notifications">
+          <div class="menu-bar">
+            <span class="menu-title">Gitify</span>
+            <div class="menu-status"><span class="status-dot"></span><strong>3</strong></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <span class="panel-kicker">Notifications</span>
+                <strong>Good morning</strong>
+              </div>
+              <span class="refresh" aria-hidden="true">↻</span>
+            </div>
+            <div class="repo-head"><span class="repo-mark">G</span><strong>moreal / gitify-native</strong><span>3</span></div>
+            <div class="notification unread">
+              <span class="type-mark pull">⌁</span>
+              <div><strong>Ship a native macOS release</strong><small>Pull request · @octocat</small></div>
+              <span class="reason">Review</span>
+            </div>
+            <div class="notification">
+              <span class="type-mark issue">○</span>
+              <div><strong>Add launch at login</strong><small>Issue · @hubot</small></div>
+              <span class="reason">Mention</span>
+            </div>
+            <div class="notification">
+              <span class="type-mark release">◇</span>
+              <div><strong>Gitify Native v1.0</strong><small>Release · moments ago</small></div>
+              <span class="reason">Watching</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="feature-section" id="features" aria-labelledby="features-title">
+        <div class="section-heading">
+          <p class="eyebrow">Everything essential</p>
+          <h2 id="features-title">Made for your menu bar</h2>
+          <p>Gitify Native keeps the useful parts close and the resource usage low.</p>
+        </div>
+        <div class="feature-grid">
+          <article><span class="feature-icon" aria-hidden="true">⌁</span><h3>Actually native</h3><p>Swift and SwiftUI, with no Electron runtime or third-party dependencies.</p></article>
+          <article><span class="feature-icon" aria-hidden="true">↗</span><h3>Ready at login</h3><p>Starts with your Mac by default, with a simple toggle when you want otherwise.</p></article>
+          <article><span class="feature-icon" aria-hidden="true">◎</span><h3>Multiple accounts</h3><p>Keep personal, work, and GitHub Enterprise notifications together.</p></article>
+          <article><span class="feature-icon" aria-hidden="true">≡</span><h3>Useful filters</h3><p>Focus by repository, organization, author, reason, type, or state.</p></article>
+          <article><span class="feature-icon" aria-hidden="true">◌</span><h3>Native alerts</h3><p>Get macOS banners and sound, then open the exact thread in one click.</p></article>
+          <article><span class="feature-icon" aria-hidden="true">↻</span><h3>Built-in updates</h3><p>Checks GitHub Releases and verifies signed updates before installing them.</p></article>
+        </div>
+      </section>
+
+      <section class="install-section" id="install" aria-labelledby="install-title">
+        <div class="section-heading">
+          <p class="eyebrow">A familiar Mac install</p>
+          <h2 id="install-title">From download to menu bar in a minute</h2>
+        </div>
+        <ol class="install-steps">
+          <li><span>1</span><div><strong>Download</strong><p>Get the latest <code>Gitify.dmg</code> from GitHub Releases.</p></div></li>
+          <li><span>2</span><div><strong>Drag</strong><p>Move Gitify into the Applications shortcut in the disk image.</p></div></li>
+          <li><span>3</span><div><strong>Launch</strong><p>Open Gitify, sign in, and find it in your menu bar from then on.</p></div></li>
+        </ol>
+        <div class="install-cta">
+          <div><strong>Requires macOS 14+</strong><p>Universal build for Apple silicon and Intel.</p></div>
+          <a class="button button-primary" href="https://github.com/moreal/gitify-native/releases/latest/download/Gitify.dmg">Download Gitify.dmg</a>
+        </div>
+        <p class="gatekeeper-note">Some development releases may be ad-hoc signed. If macOS reports one as damaged, follow the one-time Gatekeeper instruction in the <a href="https://github.com/moreal/gitify-native/releases">release notes</a>.</p>
+      </section>
+    </main>
+
+    <footer>
+      <p>Gitify Native is an unofficial native port of <a href="https://gitify.io/">Gitify</a>.</p>
+      <div><a href="https://github.com/moreal/gitify-native">Source</a><a href="https://github.com/moreal/gitify-native/blob/main/LICENSE">MIT License</a></div>
+    </footer>
+  </body>
+</html>
