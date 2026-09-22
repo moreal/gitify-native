@@ -12,10 +12,6 @@ final class StatusItemController: NSObject {
     private let notificationsStore: NotificationsStore
     private let updateChecker: UpdateChecker
     private var didCaptureLandingScreenshot = false
-    /// Count title deferred while the popover is open: applying it would resize
-    /// the variable-length status item and make AppKit re-anchor the popover,
-    /// visibly shifting it sideways.
-    private var pendingTitle: String?
 
     init(
         settings: SettingsStore,
@@ -78,11 +74,14 @@ final class StatusItemController: NSObject {
 
         let title = (settings.showCountInTray && count > 0) ? " \(count)" : ""
         if popover.isShown {
-            pendingTitle = (button.title == title) ? nil : title
-        } else {
-            button.title = title
-            pendingTitle = nil
+            // Keep the anchor stable while allowing the visible count to stay
+            // in sync with the popover. The width can return to fitting the
+            // new title once the popover no longer depends on its position.
+            if statusItem.length == NSStatusItem.variableLength {
+                statusItem.length = button.bounds.width
+            }
         }
+        button.title = title
         button.imagePosition = .imageLeft
     }
 
@@ -208,9 +207,6 @@ final class StatusItemController: NSObject {
 
 extension StatusItemController: NSPopoverDelegate {
     func popoverDidClose(_ notification: Notification) {
-        if let title = pendingTitle {
-            statusItem.button?.title = title
-            pendingTitle = nil
-        }
+        statusItem.length = NSStatusItem.variableLength
     }
 }

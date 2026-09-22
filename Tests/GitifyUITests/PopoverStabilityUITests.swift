@@ -102,8 +102,10 @@ final class PopoverStabilityUITests: XCTestCase {
         add(attachment)
     }
 
-    func testPopoverDoesNotMoveWhenMarkingNotificationDone() {
+    func testTrayCountUpdatesWithoutMovingPopoverWhenMarkingNotificationDone() {
         let popover = openPopover()
+        let statusItem = app.statusItems["gitify-status-item"]
+        XCTAssertTrue(statusItem.waitForExistence(timeout: 5), "Gitify status item should exist")
         let row = popover.staticTexts["Mock notification #1"]
         XCTAssertTrue(row.waitForExistence(timeout: 5), "mock notification row should exist")
 
@@ -121,6 +123,11 @@ final class PopoverStabilityUITests: XCTestCase {
             evaluatedWith: row
         )
         wait(for: [disappeared], timeout: 5)
+        let countUpdated = expectation(
+            for: NSPredicate(format: "title == %@", " 9"),
+            evaluatedWith: statusItem
+        )
+        wait(for: [countUpdated], timeout: 5)
         // Give AppKit a beat to re-anchor the popover if it is going to.
         Thread.sleep(forTimeInterval: 0.5)
 
