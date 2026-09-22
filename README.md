@@ -19,6 +19,31 @@ xcodebuild -project Gitify.xcodeproj -scheme Gitify -configuration Debug build
 open ~/Library/Developer/Xcode/DerivedData/Gitify-*/Build/Products/Debug/Gitify.app
 ```
 
+### Isolated macOS tests with Tart
+
+UI tests launch the menu-bar app and can steal focus on the development Mac.
+The Tart runner uses the official Cirrus Labs macOS Sequoia/Xcode 16.4 image,
+pinned by digest, and runs the tests in a disposable VM without opening a VM
+window. Install [Tart](https://tart.run/) before using it. The first run downloads
+the large Xcode image and needs roughly 100 GiB of free disk space; later runs
+reuse Tart's OCI cache.
+
+Each command clones that base with APFS copy-on-write, mounts a temporary copy
+of the checkout read-only, runs the work with graphics/audio/clipboard disabled,
+and deletes the clone afterward:
+
+```sh
+# Full unit and UI test suite
+scripts/run-in-tart.sh test
+
+# Regenerate the landing-page capture using the real app
+scripts/run-in-tart.sh screenshot
+```
+
+Set `GITIFY_TART_IMAGE` to use another compatible Tart image or local VM name.
+Failed runs preserve their temporary artifacts and Tart log under the printed
+path.
+
 ## Releases
 
 Tagged releases are built and published automatically by [GitHub Actions](.github/workflows/release.yml) as a universal (Apple silicon + Intel) ad-hoc-signed app. To cut a release, either:
