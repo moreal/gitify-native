@@ -122,6 +122,26 @@ class ReleaseDistributionTests(unittest.TestCase):
         self.assertIn("*/Sparkle/bin/generate_appcast", self.release)
         self.assertIn('"appcast.xml"', self.release)
 
+    def test_release_resigns_embedded_sparkle_code_before_notarization(self) -> None:
+        sign_step = self.release.index("- name: Re-sign embedded Sparkle components")
+        notarize_step = self.release.index("- name: Notarize and staple")
+        self.assertLess(sign_step, notarize_step)
+        for component in (
+            '"$SPARKLE/Versions/Current/Autoupdate"',
+            '"$SPARKLE/Versions/Current/Updater.app"',
+            '"$SPARKLE/Versions/Current/XPCServices/Downloader.xpc"',
+            '"$SPARKLE/Versions/Current/XPCServices/Installer.xpc"',
+            '"$SPARKLE"',
+            '"$APP"',
+        ):
+            self.assertIn(component, self.release)
+        self.assertIn("--options runtime", self.release)
+        self.assertIn("--timestamp", self.release)
+        self.assertIn(
+            "--preserve-metadata=identifier,entitlements", self.release
+        )
+        self.assertIn('codesign --verify --deep --strict "$APP"', self.release)
+
     def test_prerelease_tags_do_not_replace_stable_sparkle_feed(self) -> None:
         self.assertIn('echo "prerelease=true" >> "$GITHUB_OUTPUT"', self.release)
         self.assertIn('RELEASE_ARGS+=(--prerelease)', self.release)

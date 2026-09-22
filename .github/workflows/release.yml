@@ -115,6 +115,28 @@ jobs:
             "${SIGN_ARGS[@]}" \
             build
 
+      - name: Re-sign embedded Sparkle components
+        if: env.SIGNED == 'true'
+        run: |
+          APP="build/Build/Products/Release/Gitify.app"
+          SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
+          sign_component() {
+            codesign \
+              --force \
+              --sign "Developer ID Application" \
+              --options runtime \
+              --timestamp \
+              --preserve-metadata=identifier,entitlements \
+              "$1"
+          }
+          sign_component "$SPARKLE/Versions/Current/Autoupdate"
+          sign_component "$SPARKLE/Versions/Current/Updater.app"
+          sign_component "$SPARKLE/Versions/Current/XPCServices/Downloader.xpc"
+          sign_component "$SPARKLE/Versions/Current/XPCServices/Installer.xpc"
+          sign_component "$SPARKLE"
+          sign_component "$APP"
+          codesign --verify --deep --strict "$APP"
+
       - name: Notarize and staple
         if: env.SIGNED == 'true'
         env:
