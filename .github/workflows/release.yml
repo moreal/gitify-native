@@ -43,6 +43,11 @@ jobs:
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Create tag
         if: github.event_name == 'workflow_dispatch'
@@ -225,7 +230,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
+          RELEASE_ARGS=()
+          if [ "$PRERELEASE" = "true" ]; then
+            RELEASE_ARGS+=(--prerelease)
+          fi
           if [ "$SIGNED" = "true" ]; then
             cat > release-notes.md <<'EOF'
           ### Installation
@@ -260,6 +270,7 @@ jobs:
             "Gitify-$VERSION.zip" \
             "Gitify-$VERSION.zip.sha256" \
             "appcast.xml" \
+            "${RELEASE_ARGS[@]}" \
             --title "Gitify Native v$VERSION" \
             --notes-file release-notes.md \
             --generate-notes

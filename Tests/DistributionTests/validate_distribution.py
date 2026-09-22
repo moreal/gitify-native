@@ -122,6 +122,11 @@ class ReleaseDistributionTests(unittest.TestCase):
         self.assertIn("*/Sparkle/bin/generate_appcast", self.release)
         self.assertIn('"appcast.xml"', self.release)
 
+    def test_prerelease_tags_do_not_replace_stable_sparkle_feed(self) -> None:
+        self.assertIn('echo "prerelease=true" >> "$GITHUB_OUTPUT"', self.release)
+        self.assertIn('RELEASE_ARGS+=(--prerelease)', self.release)
+        self.assertIn('"${RELEASE_ARGS[@]}"', self.release)
+
     def test_readme_links_to_latest_dmg(self) -> None:
         self.assertIn(STABLE_DMG_URL, self.readme)
 
