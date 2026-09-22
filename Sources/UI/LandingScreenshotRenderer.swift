@@ -1,7 +1,7 @@
 import AppKit
 
 /// Produces the public landing-page image from the live popover view. Caching
-/// the already-laid-out view into a 2× bitmap preserves SwiftUI's native
+/// the already-laid-out view into a 4× bitmap preserves SwiftUI's native
 /// controls and symbols while avoiding the 1× display density of GitHub-hosted
 /// macOS runners without interpolating app pixels.
 @MainActor
@@ -23,8 +23,8 @@ enum LandingScreenshotRenderer {
         }
         guard let bitmap = NSBitmapImageRep(
             bitmapDataPlanes: nil,
-            pixelsWide: 840,
-            pixelsHigh: 1120,
+            pixelsWide: 1680,
+            pixelsHigh: 2240,
             bitsPerSample: 8,
             samplesPerPixel: 4,
             hasAlpha: true,

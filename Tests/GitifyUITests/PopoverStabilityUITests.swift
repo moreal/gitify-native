@@ -69,8 +69,8 @@ final class PopoverStabilityUITests: XCTestCase {
         wait(for: [rendered], timeout: 10)
 
         let representation = try! XCTUnwrap(NSImage(contentsOf: url)?.representations.first)
-        XCTAssertEqual(representation.pixelsWide, 840)
-        XCTAssertEqual(representation.pixelsHigh, 1120)
+        XCTAssertEqual(representation.pixelsWide, 1680)
+        XCTAssertEqual(representation.pixelsHigh, 2240)
         let fileSize = try! XCTUnwrap(
             (try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber
         )

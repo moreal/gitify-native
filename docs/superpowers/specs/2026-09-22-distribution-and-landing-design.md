@@ -54,7 +54,7 @@ one-time quarantine removal required by macOS.
 
 The site lives in `docs/site/` as plain HTML and CSS. It uses the existing app icon
 and an actual app screenshot produced during XCUITest from the live popover view at
-a fixed 2× resolution. It has no JavaScript, external fonts, analytics, package
+a fixed 4× resolution. It has no JavaScript, external fonts, analytics, package
 manager, or web build step.
 
 The page contains:
@@ -77,10 +77,10 @@ the application and repository documentation.
 ## GitHub Pages Deployment
 
 `.github/workflows/pages.yml` uses a macOS runner to launch the app with the
-landing-page UI fixture, render the live popover into an 840×1120 bitmap, and
+landing-page UI fixture, render the live popover into a 1680×2240 bitmap, and
 replace the committed fallback image before it deploys `docs/site/` with the
 official Pages Actions. The export rejects any other dimensions instead of scaling
-a 1× capture. It runs on
+a lower-density capture. It runs on
 relevant pushes to `main` and on manual dispatch, uses `contents: read`, `pages:
 write`, and `id-token: write`, and serializes deployments with a Pages concurrency
 group. The deployment environment exposes the resulting page URL.
@@ -100,7 +100,7 @@ Validation covers:
 - Debug app compilation and the existing UI suite;
 - YAML parsing and inspection of workflow permissions, triggers, and artifact path;
 - local serving plus HTTP checks of the landing page and its local assets;
-- the screenshot fixture, fixed 2× app rendering, XCUITest attachment export, and
+- the screenshot fixture, fixed 4× app rendering, XCUITest attachment export, and
   committed fallback image;
 - HTML link, accessibility landmark, image-alt, and reduced-motion checks; and
 - shell syntax and a local ad-hoc Release build followed by DMG creation, verification,

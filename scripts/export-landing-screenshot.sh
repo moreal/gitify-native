@@ -29,11 +29,11 @@ fi
 SCREENSHOT="$(find "$EXPORT_DIR" -type f -name '*.png' -print -quit)"
 PIXEL_WIDTH="$(sips -g pixelWidth "$SCREENSHOT" | awk '/pixelWidth/ { print $2 }')"
 PIXEL_HEIGHT="$(sips -g pixelHeight "$SCREENSHOT" | awk '/pixelHeight/ { print $2 }')"
-EXPECTED_PIXEL_WIDTH=840
-EXPECTED_PIXEL_HEIGHT=1120
+EXPECTED_PIXEL_WIDTH=1680
+EXPECTED_PIXEL_HEIGHT=2240
 
-# The app renders its real 420×560 pt SwiftUI popover at a fixed 2× scale.
-# Reject 1× CI captures instead of silently shipping a blurry landing image.
+# The app renders its real 420×560 pt SwiftUI popover at a fixed 4× scale.
+# Reject lower-density CI captures instead of silently shipping a blurry image.
 if [ "$PIXEL_WIDTH" -ne "$EXPECTED_PIXEL_WIDTH" ] || \
    [ "$PIXEL_HEIGHT" -ne "$EXPECTED_PIXEL_HEIGHT" ]; then
   echo "expected ${EXPECTED_PIXEL_WIDTH}x${EXPECTED_PIXEL_HEIGHT} screenshot, got ${PIXEL_WIDTH}x${PIXEL_HEIGHT}" >&2
@@ -42,4 +42,4 @@ fi
 
 mkdir -p "$(dirname "$OUTPUT")"
 cp "$SCREENSHOT" "$OUTPUT"
-echo "wrote $OUTPUT (${PIXEL_WIDTH}x${PIXEL_HEIGHT}, app-rendered at 2x)"
+echo "wrote $OUTPUT (${PIXEL_WIDTH}x${PIXEL_HEIGHT}, app-rendered at 4x)"
