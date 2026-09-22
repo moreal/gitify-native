@@ -7,8 +7,12 @@ import Foundation
 /// the developer's real accounts, Keychain entries and settings are untouched.
 enum UITestMock {
     static let isActive = ProcessInfo.processInfo.arguments.contains("--uitest-mock-github")
-    static func shouldStartUpdater(isUITestActive: Bool = isActive) -> Bool {
-        !isUITestActive
+    static let isUnitTestActive = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    static func shouldStartUpdater(
+        isUITestActive: Bool = isActive,
+        isUnitTestActive: Bool = isUnitTestActive
+    ) -> Bool {
+        !isUITestActive && !isUnitTestActive
     }
 
     static let isLandingScreenshot = ProcessInfo.processInfo.arguments.contains("--uitest-landing-screenshot")

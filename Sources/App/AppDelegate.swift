@@ -246,6 +246,10 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse
     ) async {
         let identifier = response.notification.request.identifier
+        if identifier == UpdateController.notificationIdentifier {
+            updateController.checkForUpdates()
+            return
+        }
         guard let (item, account) = deliveredBanners.removeValue(forKey: identifier) else {
             statusItemController.togglePopover()
             return
