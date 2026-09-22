@@ -18,7 +18,7 @@ enum LandingScreenshotRenderer {
         settings: SettingsStore,
         accountsStore: AccountsStore,
         notificationsStore: NotificationsStore,
-        updateChecker: UpdateChecker,
+        updateController: UpdateController,
         to outputURL: URL
     ) throws {
         let content = PopoverRootView()
@@ -26,7 +26,7 @@ enum LandingScreenshotRenderer {
             .environmentObject(accountsStore)
             .environmentObject(notificationsStore)
             .environmentObject(notificationsStore.filters)
-            .environmentObject(updateChecker)
+            .environmentObject(updateController)
         let renderer = ImageRenderer(content: content)
         renderer.proposedSize = ProposedViewSize(pointSize)
         renderer.scale = 4

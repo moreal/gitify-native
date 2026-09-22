@@ -18,7 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var accountsStore: AccountsStore!
     private(set) var filtersStore: FiltersStore!
     private(set) var notificationsStore: NotificationsStore!
-    private var updateChecker: UpdateChecker!
+    private var updateController: UpdateController!
     private var statusItemController: StatusItemController!
     private var loginItemController: LoginItemController!
     private var themeObserver: AnyCancellable?
@@ -35,13 +35,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settings: settings,
             filters: filtersStore
         )
-        updateChecker = UpdateChecker()
+        updateController = UpdateController()
         loginItemController = LoginItemController()
         statusItemController = StatusItemController(
             settings: settings,
             accountsStore: accountsStore,
             notificationsStore: notificationsStore,
-            updateChecker: updateChecker
+            updateController: updateController
         )
 
         applyTheme(settings.theme)
@@ -107,11 +107,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] enabled, accelerator in
                 self?.updateHotKey(enabled: enabled, accelerator: accelerator)
             }
-
-        updateChecker.onUpdateAvailable = { [weak self] release in
-            self?.deliverUpdateNotification(for: release)
-        }
-        updateChecker.startAutomaticChecks()
 
         notificationsStore.startPolling()
 
@@ -198,20 +193,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // NSPopover inherits appearance from the status bar window, not the app,
         // so it must be set explicitly.
         statusItemController.applyPopoverAppearance(appearance)
-    }
-
-    /// Update banners are informational; clicking one opens the popover
-    /// (the unknown-identifier path below), where the tray menu and Settings
-    /// footer offer the install. Deliberately not gated on
-    /// showNotificationBanners — that setting scopes GitHub notification
-    /// banners, and an update notice is app-level.
-    private func deliverUpdateNotification(for release: UpdateChecker.AppRelease) {
-        let content = UNMutableNotificationContent()
-        content.title = "Gitify"
-        content.body = "Gitify v\(release.version) is available."
-        UNUserNotificationCenter.current().add(
-            UNNotificationRequest(identifier: "gitify-update", content: content, trigger: nil)
-        )
     }
 
     /// Delivered banner identifier → source notification, for click-through.

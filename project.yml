@@ -3,6 +3,10 @@ options:
   createIntermediateGroups: true
   deploymentTarget:
     macOS: "14.0"
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.0
 targets:
   Gitify:
     type: application
@@ -11,6 +15,8 @@ targets:
       - path: Sources
       - path: Resources
         buildPhase: resources
+    dependencies:
+      - package: Sparkle
     info:
       path: Sources/Info.plist
       properties:
@@ -22,6 +28,10 @@ targets:
         LSUIElement: true
         LSApplicationCategoryType: public.app-category.developer-tools
         NSHumanReadableCopyright: "MIT License. Native port of Gitify (gitify.io)."
+        SUFeedURL: https://github.com/moreal/gitify-native/releases/latest/download/appcast.xml
+        SUPublicEDKey: t/Ye5scQdmBW/96GXB8i/645i7+nRrllMY5wBUK3jXw=
+        SUEnableAutomaticChecks: true
+        SUAutomaticallyUpdate: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.moreal.gitify

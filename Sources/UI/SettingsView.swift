@@ -5,7 +5,7 @@ struct SettingsView: View {
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var accountsStore: AccountsStore
     @EnvironmentObject private var notificationsStore: NotificationsStore
-    @EnvironmentObject private var updateChecker: UpdateChecker
+    @EnvironmentObject private var updateController: UpdateController
     let onClose: () -> Void
     let onAddAccount: () -> Void
 
@@ -143,55 +143,25 @@ struct SettingsView: View {
     /// (upstream SettingsFooter).
     private var footer: some View {
         HStack(spacing: 12) {
-            Button("Gitify v\(UpdateChecker.currentVersion)") {
-                NSWorkspace.shared.open(UpdateChecker.releaseNotesURL)
+            Button("Gitify v\(UpdateController.currentVersion)") {
+                NSWorkspace.shared.open(UpdateController.releaseNotesURL)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .font(.caption)
             .help("View release notes")
-            updateStatus
+            Button("Check for updates") {
+                updateController.checkForUpdates()
+            }
+            .buttonStyle(.plain)
+            .font(.caption)
+            .foregroundStyle(.secondary)
             Spacer()
             Button("Quit Gitify") { NSApp.terminate(nil) }
                 .controlSize(.small)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-    }
-
-    @ViewBuilder private var updateStatus: some View {
-        switch updateChecker.phase {
-        case .idle:
-            checkUpdatesButton("Check for updates")
-        case .checking:
-            updateCaption("Checking for updates…")
-        case .upToDate:
-            updateCaption("Up to date")
-        case .available(let release):
-            Button("Update to v\(release.version)") { updateChecker.install() }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-        case .installing:
-            updateCaption("Installing update…")
-        case .failed(let message):
-            checkUpdatesButton("Update check failed — retry", tint: Color(nsColor: .systemRed))
-                .help(message)
-        }
-    }
-
-    private func updateCaption(_ text: String) -> some View {
-        Text(text)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-    }
-
-    private func checkUpdatesButton(_ title: String, tint: Color? = nil) -> some View {
-        Button(title) {
-            Task { await updateChecker.check(manual: true) }
-        }
-        .buttonStyle(.plain)
-        .font(.caption)
-        .foregroundStyle(tint.map(AnyShapeStyle.init) ?? AnyShapeStyle(.secondary))
     }
 
     private func refetch() {

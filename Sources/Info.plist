@@ -28,5 +28,13 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>MIT License. Native port of Gitify (gitify.io).</string>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/moreal/gitify-native/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>t/Ye5scQdmBW/96GXB8i/645i7+nRrllMY5wBUK3jXw=</string>
 </dict>
 </plist>

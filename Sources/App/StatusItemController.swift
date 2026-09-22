@@ -10,19 +10,19 @@ final class StatusItemController: NSObject {
     private let settings: SettingsStore
     private let accountsStore: AccountsStore
     private let notificationsStore: NotificationsStore
-    private let updateChecker: UpdateChecker
+    private let updateController: UpdateController
     private var didCaptureLandingScreenshot = false
 
     init(
         settings: SettingsStore,
         accountsStore: AccountsStore,
         notificationsStore: NotificationsStore,
-        updateChecker: UpdateChecker
+        updateController: UpdateController
     ) {
         self.settings = settings
         self.accountsStore = accountsStore
         self.notificationsStore = notificationsStore
-        self.updateChecker = updateChecker
+        self.updateController = updateController
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -36,7 +36,7 @@ final class StatusItemController: NSObject {
                 .environmentObject(accountsStore)
                 .environmentObject(notificationsStore)
                 .environmentObject(notificationsStore.filters)
-                .environmentObject(updateChecker)
+                .environmentObject(updateController)
         )
 
         if let button = statusItem.button {
@@ -123,7 +123,7 @@ final class StatusItemController: NSObject {
                 settings: settings,
                 accountsStore: accountsStore,
                 notificationsStore: notificationsStore,
-                updateChecker: updateChecker,
+                updateController: updateController,
                 to: outputURL
             )
             didCaptureLandingScreenshot = true
@@ -137,7 +137,11 @@ final class StatusItemController: NSObject {
         menu.addItem(withTitle: "Open Gitify", action: #selector(openGitify), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Refresh", action: #selector(refresh), keyEquivalent: "r").target = self
         menu.addItem(.separator())
-        addUpdateItems(to: menu)
+        menu.addItem(
+            withTitle: "Check for updates",
+            action: #selector(checkForUpdates),
+            keyEquivalent: ""
+        ).target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "Reset Gitify…", action: #selector(confirmReset), keyEquivalent: "").target = self
         menu.addItem(.separator())
@@ -147,27 +151,8 @@ final class StatusItemController: NSObject {
         statusItem.menu = nil // detach so left click keeps toggling the popover
     }
 
-    /// Upstream tray parity: a "Check for updates" action plus a status row
-    /// reflecting the checker's phase. Action-less items render disabled.
-    private func addUpdateItems(to menu: NSMenu) {
-        let items: [(title: String, action: Selector?)] = switch updateChecker.phase {
-        case .idle, .failed: [("Check for updates", #selector(checkForUpdates))]
-        case .checking: [("Checking for updates…", nil)]
-        case .upToDate: [("Check for updates", #selector(checkForUpdates)), ("No updates available", nil)]
-        case .available(let release): [("Update to v\(release.version)…", #selector(installUpdate))]
-        case .installing: [("Installing update…", nil)]
-        }
-        for item in items {
-            menu.addItem(withTitle: item.title, action: item.action, keyEquivalent: "").target = self
-        }
-    }
-
     @objc private func checkForUpdates() {
-        Task { await updateChecker.check(manual: true) }
-    }
-
-    @objc private func installUpdate() {
-        updateChecker.install()
+        updateController.checkForUpdates()
     }
 
     @objc private func openGitify() {

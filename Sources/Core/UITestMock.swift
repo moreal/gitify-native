@@ -7,6 +7,10 @@ import Foundation
 /// the developer's real accounts, Keychain entries and settings are untouched.
 enum UITestMock {
     static let isActive = ProcessInfo.processInfo.arguments.contains("--uitest-mock-github")
+    static func shouldStartUpdater(isUITestActive: Bool = isActive) -> Bool {
+        !isUITestActive
+    }
+
     static let isLandingScreenshot = ProcessInfo.processInfo.arguments.contains("--uitest-landing-screenshot")
     static var landingScreenshotOutputURL: URL? {
         guard isLandingScreenshot,
@@ -185,10 +189,6 @@ final class UITestMockURLProtocol: URLProtocol {
                 ? Array(sorted[start..<min(start + perPage, sorted.count)])
                 : []
             return (200, notificationsJSON(slice))
-        }
-        if method == "GET", path.hasSuffix("/releases/latest") {
-            // The update checker's feed: no releases → the checker stays idle.
-            return (404, Data())
         }
         if path.hasPrefix("/notifications/threads/") {
             let last = path.split(separator: "/").last.map(String.init) ?? ""

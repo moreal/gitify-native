@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import base64
+import plistlib
 import re
 import struct
 import unittest
@@ -9,6 +11,8 @@ from html.parser import HTMLParser
 ROOT = Path(__file__).resolve().parents[2]
 RELEASE_WORKFLOW = ROOT / ".github/workflows/release.yml"
 README = ROOT / "README.md"
+INFO_PLIST = ROOT / "Sources/Info.plist"
+PROJECT_SPEC = ROOT / "project.yml"
 STABLE_DMG_URL = (
     "https://github.com/moreal/gitify-native/releases/latest/download/Gitify.dmg"
 )
@@ -95,6 +99,22 @@ class ReleaseDistributionTests(unittest.TestCase):
     def test_release_keeps_versioned_updater_zip(self) -> None:
         self.assertIn('"Gitify-$VERSION.zip"', self.release)
         self.assertIn('"Gitify-$VERSION.zip.sha256"', self.release)
+
+    def test_sparkle_configuration_is_publishable(self) -> None:
+        info = plistlib.loads(INFO_PLIST.read_bytes())
+        self.assertEqual(
+            info["SUFeedURL"],
+            "https://github.com/moreal/gitify-native/releases/latest/download/appcast.xml",
+        )
+        self.assertIs(info["SUEnableAutomaticChecks"], True)
+        self.assertIs(info["SUAutomaticallyUpdate"], False)
+        self.assertEqual(
+            len(base64.b64decode(info["SUPublicEDKey"], validate=True)),
+            32,
+        )
+        project = PROJECT_SPEC.read_text()
+        self.assertIn("https://github.com/sparkle-project/Sparkle", project)
+        self.assertIn("exactVersion: 2.10.0", project)
 
     def test_readme_links_to_latest_dmg(self) -> None:
         self.assertIn(STABLE_DMG_URL, self.readme)
