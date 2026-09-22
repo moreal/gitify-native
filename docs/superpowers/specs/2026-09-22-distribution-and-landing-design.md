@@ -52,15 +52,16 @@ one-time quarantine removal required by macOS.
 
 ## Landing Page
 
-The site lives in `docs/site/` as plain HTML and CSS. It uses a PNG derived from the
-existing app icon and has no JavaScript, external fonts, analytics, package manager,
-or web build step.
+The site lives in `docs/site/` as plain HTML and CSS. It uses the existing app icon
+and an actual app screenshot captured by XCUITest. It has no JavaScript, external
+fonts, analytics, package manager, or web build step.
 
 The page contains:
 
 - a hero with the app icon, a short native-macOS value proposition, a direct
   `Download for macOS` link to the stable latest-release DMG, and a source link;
-- a lightweight HTML/CSS representation of the menu-bar notification panel;
+- the real menu-bar notification panel populated with deterministic, fictional
+  GitHub notifications and captioned as test data;
 - concise feature cards for native SwiftUI, automatic login launch, multiple
   accounts, filtering, notifications, and automatic updates;
 - a three-step install guide and the macOS 14+ requirement;
@@ -74,10 +75,12 @@ the application and repository documentation.
 
 ## GitHub Pages Deployment
 
-`.github/workflows/pages.yml` deploys `docs/site/` with the official Pages Actions.
-It runs on relevant pushes to `main` and on manual dispatch, uses `contents: read`,
-`pages: write`, and `id-token: write`, and serializes deployments with a Pages
-concurrency group. The deployment environment exposes the resulting page URL.
+`.github/workflows/pages.yml` uses a macOS runner to launch the app with the
+landing-page UI fixture, capture the popover, and replace the committed fallback
+image before it deploys `docs/site/` with the official Pages Actions. It runs on
+relevant pushes to `main` and on manual dispatch, uses `contents: read`, `pages:
+write`, and `id-token: write`, and serializes deployments with a Pages concurrency
+group. The deployment environment exposes the resulting page URL.
 
 The repository must have Pages Source set to GitHub Actions. The workflow does not
 write to a branch and does not run for unrelated application-only commits.
@@ -94,6 +97,8 @@ Validation covers:
 - Debug app compilation and the existing UI suite;
 - YAML parsing and inspection of workflow permissions, triggers, and artifact path;
 - local serving plus HTTP checks of the landing page and its local assets;
+- the screenshot fixture, XCUITest attachment export, crop dimensions, and
+  committed fallback image;
 - HTML link, accessibility landmark, image-alt, and reduced-motion checks; and
 - shell syntax and a local ad-hoc Release build followed by DMG creation, verification,
   mount-content inspection, and cleanup when the environment permits it.

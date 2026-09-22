@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 from html.parser import HTMLParser
+import struct
 import unittest
 
 
@@ -14,7 +15,9 @@ SITE_ROOT = ROOT / "docs/site"
 INDEX = SITE_ROOT / "index.html"
 STYLES = SITE_ROOT / "styles.css"
 APP_ICON = SITE_ROOT / "app-icon.png"
+APP_SCREENSHOT = SITE_ROOT / "assets/gitify-popover.png"
 PAGES_WORKFLOW = ROOT / ".github/workflows/pages.yml"
+SCREENSHOT_EXPORT_SCRIPT = ROOT / "scripts/export-landing-screenshot.sh"
 
 
 class LandingPageParser(HTMLParser):
@@ -68,6 +71,7 @@ class LandingPageTests(unittest.TestCase):
         self.assertTrue(INDEX.exists(), "landing page index.html must exist")
         self.assertTrue(STYLES.exists(), "landing page styles.css must exist")
         self.assertTrue(APP_ICON.exists(), "landing page app icon must exist")
+        self.assertTrue(APP_SCREENSHOT.exists(), "actual app screenshot must exist")
 
         html = INDEX.read_text()
         parser = LandingPageParser()
@@ -80,8 +84,14 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn("https://github.com/moreal/gitify-native/releases", parser.links)
         self.assertIn("styles.css", parser.stylesheets)
         self.assertIn("macOS 14+", html)
+        self.assertIn("assets/gitify-popover.png", html)
+        self.assertIn("Actual Gitify Native UI shown with deterministic test data", html)
+        self.assertNotIn('class="app-demo"', html)
         self.assertEqual(parser.script_count, 0)
         self.assertEqual(APP_ICON.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+        screenshot = APP_SCREENSHOT.read_bytes()
+        self.assertEqual(screenshot[:8], b"\x89PNG\r\n\x1a\n")
+        self.assertEqual(struct.unpack(">II", screenshot[16:24]), (840, 1120))
 
     def test_styles_cover_focus_touch_dark_mode_and_reduced_motion(self) -> None:
         self.assertTrue(STYLES.exists(), "landing page styles.css must exist")
@@ -99,6 +109,13 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn("actions/configure-pages@v5", workflow)
         self.assertIn("actions/upload-pages-artifact@v4", workflow)
         self.assertIn("actions/deploy-pages@v5", workflow)
+        self.assertIn("runs-on: macos-15", workflow)
+        self.assertIn("testCaptureLandingScreenshot", workflow)
+        self.assertTrue(SCREENSHOT_EXPORT_SCRIPT.exists())
+        self.assertIn(
+            "xcresulttool export attachments",
+            SCREENSHOT_EXPORT_SCRIPT.read_text(),
+        )
         self.assertIn("path: docs/site", workflow)
         self.assertIn("contents: read", workflow)
         self.assertIn("pages: write", workflow)

@@ -38,5 +38,13 @@ struct PopoverRootView: View {
             }
         }
         .frame(width: 420, height: 560)
+        .background {
+            if UITestMock.isLandingScreenshot {
+                // NSPopover normally blends with whatever is behind it. The
+                // public screenshot must contain app pixels only, never the
+                // local or CI runner desktop.
+                Color(nsColor: .windowBackgroundColor)
+            }
+        }
     }
 }

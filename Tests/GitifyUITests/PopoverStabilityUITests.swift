@@ -17,6 +17,9 @@ final class PopoverStabilityUITests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchArguments = ["--uitest-mock-github", "--uitest-open-popover"]
+        if name.contains("testCaptureLandingScreenshot") {
+            app.launchArguments.append("--uitest-landing-screenshot")
+        }
         app.launch()
     }
 
@@ -35,6 +38,23 @@ final class PopoverStabilityUITests: XCTestCase {
             popover.staticTexts["10"].exists,
             "header badge should show the mock unread count"
         )
+    }
+
+    func testCaptureLandingScreenshot() {
+        let popover = openPopover()
+        XCTAssertTrue(
+            popover.staticTexts["Polish the macOS onboarding flow"].waitForExistence(timeout: 5),
+            "landing screenshot fixture should show a realistic pull request"
+        )
+        XCTAssertFalse(
+            popover.staticTexts["Mock notification #1"].exists,
+            "generic regression fixtures should not appear in the landing screenshot"
+        )
+
+        let attachment = XCTAttachment(screenshot: popover.screenshot())
+        attachment.name = "gitify-popover"
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     func testPopoverDoesNotMoveWhenMarkingNotificationDone() {

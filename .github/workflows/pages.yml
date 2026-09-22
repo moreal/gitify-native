@@ -4,7 +4,12 @@ on:
   push:
     branches: [main]
     paths:
+      - "Sources/**"
+      - "Resources/**"
+      - "Tests/GitifyUITests/**"
       - "docs/site/**"
+      - "scripts/export-landing-screenshot.sh"
+      - "project.yml"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -18,16 +23,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    name: Deploy landing page
+  build:
+    name: Capture app and build site
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: macos-15
+    timeout-minutes: 30
     steps:
       - name: Check out
         uses: actions/checkout@v6
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Capture actual app screenshot
+        run: |
+          xcodebuild test \
+            -project Gitify.xcodeproj \
+            -scheme Gitify \
+            -derivedDataPath "$RUNNER_TEMP/derived-data" \
+            -resultBundlePath "$RUNNER_TEMP/GitifyLanding.xcresult" \
+            -only-testing:GitifyUITests/PopoverStabilityUITests/testCaptureLandingScreenshot
+
+      - name: Export screenshot
+        run: |
+          scripts/export-landing-screenshot.sh \
+            "$RUNNER_TEMP/GitifyLanding.xcresult" \
+            docs/site/assets/gitify-popover.png
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -37,6 +61,15 @@ jobs:
         with:
           path: docs/site
 
+  deploy:
+    name: Deploy landing page
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
