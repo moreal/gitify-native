@@ -53,9 +53,11 @@ one-time quarantine removal required by macOS.
 ## Landing Page
 
 The site lives in `docs/site/` as plain HTML and CSS. It uses the existing app icon
-and an actual app screenshot produced during XCUITest from the live popover view at
-a fixed 4× resolution. It has no JavaScript, external fonts, analytics, package
-manager, or web build step.
+and an actual app screenshot produced during XCUITest from the popover's live store
+state with SwiftUI ImageRenderer at a fixed 4× resolution. The screenshot fixture
+materializes the list outside its normal lazy scroll container so every row is
+drawn at the requested density. It has no JavaScript, external fonts, analytics,
+package manager, or web build step.
 
 The page contains:
 
@@ -77,7 +79,7 @@ the application and repository documentation.
 ## GitHub Pages Deployment
 
 `.github/workflows/pages.yml` uses a macOS runner to launch the app with the
-landing-page UI fixture, render the live popover into a 1680×2240 bitmap, and
+landing-page UI fixture, render the populated popover into a 1680×2240 bitmap, and
 replace the committed fallback image before it deploys `docs/site/` with the
 official Pages Actions. The export rejects any other dimensions instead of scaling
 a lower-density capture. It runs on

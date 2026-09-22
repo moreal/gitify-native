@@ -1,43 +1,47 @@
 import AppKit
+import SwiftUI
 
-/// Produces the public landing-page image from the live popover view. Caching
-/// the already-laid-out view into a 4× bitmap preserves SwiftUI's native
-/// controls and symbols while avoiding the 1× display density of GitHub-hosted
-/// macOS runners without interpolating app pixels.
+/// Produces the public landing-page image by asking SwiftUI to redraw the
+/// popover at 4×. This does not depend on the CI runner's 1× window backing
+/// scale, so text and symbols contain real high-density pixels.
 @MainActor
 enum LandingScreenshotRenderer {
     static let pointSize = CGSize(width: 420, height: 560)
 
     enum RenderError: Error {
-        case unexpectedViewSize(CGSize)
-        case bitmapUnavailable
+        case imageUnavailable
+        case unexpectedPixelSize(width: Int, height: Int)
         case pngUnavailable
     }
 
-    static func write(view: NSView, to outputURL: URL) throws {
-        view.layoutSubtreeIfNeeded()
-        view.displayIfNeeded()
+    static func write(
+        settings: SettingsStore,
+        accountsStore: AccountsStore,
+        notificationsStore: NotificationsStore,
+        updateChecker: UpdateChecker,
+        to outputURL: URL
+    ) throws {
+        let content = PopoverRootView()
+            .environmentObject(settings)
+            .environmentObject(accountsStore)
+            .environmentObject(notificationsStore)
+            .environmentObject(notificationsStore.filters)
+            .environmentObject(updateChecker)
+        let renderer = ImageRenderer(content: content)
+        renderer.proposedSize = ProposedViewSize(pointSize)
+        renderer.scale = 4
+        renderer.isOpaque = true
 
-        guard view.bounds.size == pointSize else {
-            throw RenderError.unexpectedViewSize(view.bounds.size)
+        guard let image = renderer.cgImage else {
+            throw RenderError.imageUnavailable
         }
-        guard let bitmap = NSBitmapImageRep(
-            bitmapDataPlanes: nil,
-            pixelsWide: 1680,
-            pixelsHigh: 2240,
-            bitsPerSample: 8,
-            samplesPerPixel: 4,
-            hasAlpha: true,
-            isPlanar: false,
-            colorSpaceName: .deviceRGB,
-            bytesPerRow: 0,
-            bitsPerPixel: 0
-        ) else {
-            throw RenderError.bitmapUnavailable
+        let bitmap = NSBitmapImageRep(cgImage: image)
+        guard bitmap.pixelsWide == 1680, bitmap.pixelsHigh == 2240 else {
+            throw RenderError.unexpectedPixelSize(
+                width: bitmap.pixelsWide,
+                height: bitmap.pixelsHigh
+            )
         }
-        bitmap.size = pointSize
-        view.cacheDisplay(in: view.bounds, to: bitmap)
-
         guard let png = bitmap.representation(using: .png, properties: [:]) else {
             throw RenderError.pngUnavailable
         }

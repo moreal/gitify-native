@@ -116,12 +116,17 @@ final class StatusItemController: NSObject {
               popover.isShown,
               !notificationsStore.isFetching,
               notificationsStore.unreadCount == UITestMock.notificationCount,
-              let outputURL = UITestMock.landingScreenshotOutputURL,
-              let view = popover.contentViewController?.view
+              let outputURL = UITestMock.landingScreenshotOutputURL
         else { return }
 
         do {
-            try LandingScreenshotRenderer.write(view: view, to: outputURL)
+            try LandingScreenshotRenderer.write(
+                settings: settings,
+                accountsStore: accountsStore,
+                notificationsStore: notificationsStore,
+                updateChecker: updateChecker,
+                to: outputURL
+            )
             didCaptureLandingScreenshot = true
         } catch {
             NSLog("Failed to capture landing screenshot: \(error)")

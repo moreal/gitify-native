@@ -19,6 +19,7 @@ APP_SCREENSHOT = SITE_ROOT / "assets/gitify-popover.png"
 PAGES_WORKFLOW = ROOT / ".github/workflows/pages.yml"
 SCREENSHOT_EXPORT_SCRIPT = ROOT / "scripts/export-landing-screenshot.sh"
 LANDING_SCREENSHOT_RENDERER = ROOT / "Sources/UI/LandingScreenshotRenderer.swift"
+NOTIFICATIONS_LIST_VIEW = ROOT / "Sources/UI/NotificationsListView.swift"
 
 
 class LandingPageParser(HTMLParser):
@@ -120,9 +121,14 @@ class LandingPageTests(unittest.TestCase):
         self.assertNotIn("--cropToHeightWidth", export_script)
         self.assertTrue(LANDING_SCREENSHOT_RENDERER.exists())
         renderer = LANDING_SCREENSHOT_RENDERER.read_text()
-        self.assertIn("cacheDisplay", renderer)
-        self.assertIn("pixelsWide: 1680", renderer)
-        self.assertIn("pixelsHigh: 2240", renderer)
+        self.assertIn("ImageRenderer", renderer)
+        self.assertIn("renderer.scale = 4", renderer)
+        self.assertNotIn("cacheDisplay", renderer)
+        self.assertIn("pixelsWide == 1680", renderer)
+        self.assertIn("pixelsHigh == 2240", renderer)
+        notifications_view = NOTIFICATIONS_LIST_VIEW.read_text()
+        self.assertIn("if UITestMock.isLandingScreenshot", notifications_view)
+        self.assertIn("VStack(spacing: 0)", notifications_view)
         self.assertIn("path: docs/site", workflow)
         self.assertIn("contents: read", workflow)
         self.assertIn("pages: write", workflow)

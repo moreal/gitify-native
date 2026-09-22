@@ -71,6 +71,23 @@ final class PopoverStabilityUITests: XCTestCase {
         let representation = try! XCTUnwrap(NSImage(contentsOf: url)?.representations.first)
         XCTAssertEqual(representation.pixelsWide, 1680)
         XCTAssertEqual(representation.pixelsHigh, 2240)
+        let bitmap = try! XCTUnwrap(NSBitmapImageRep(data: try! Data(contentsOf: url)))
+        var prohibitedSymbolPixels = 0
+        for y in stride(from: 0, to: bitmap.pixelsHigh, by: 4) {
+            for x in stride(from: 0, to: bitmap.pixelsWide, by: 4) {
+                guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { continue }
+                if color.redComponent > 0.9,
+                   color.greenComponent > 0.55,
+                   color.blueComponent < 0.2
+                {
+                    prohibitedSymbolPixels += 1
+                }
+            }
+        }
+        XCTAssertEqual(
+            prohibitedSymbolPixels, 0,
+            "rendered screenshot should not contain SF Symbol prohibition placeholders"
+        )
         let fileSize = try! XCTUnwrap(
             (try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber
         )

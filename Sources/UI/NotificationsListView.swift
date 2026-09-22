@@ -38,6 +38,22 @@ struct NotificationsListView: View {
             if notificationsStore.isFetching {
                 ProgressView().controlSize(.small)
             }
+            headerActions
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+    }
+
+    @ViewBuilder
+    private var headerActions: some View {
+        if UITestMock.isLandingScreenshot {
+            Image(systemName: "arrow.clockwise")
+            Image(systemName: filters.hasActiveFilters
+                ? "line.3.horizontal.decrease.circle.fill"
+                : "line.3.horizontal.decrease.circle")
+                .foregroundStyle(filters.hasActiveFilters ? Color.accentColor : Color.secondary)
+            Image(systemName: "gearshape")
+        } else {
             Button {
                 Task { await notificationsStore.fetch() }
             } label: {
@@ -59,8 +75,6 @@ struct NotificationsListView: View {
             .buttonStyle(.borderless)
             .help("Settings")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
     }
 
     @ViewBuilder
@@ -84,33 +98,17 @@ struct NotificationsListView: View {
                         : "No new notifications."
                 )
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
-                        ForEach(visibleGroups) { group in
-                            // Only an account whose header (and chevron) is
-                            // visible can be collapsed.
-                            let isAccountCollapsed = showAccountHeaders
-                                && collapsedAccounts.contains(group.id)
-                            if showAccountHeaders {
-                                AccountHeader(
-                                    account: group.account,
-                                    hasError: group.error != nil,
-                                    isCollapsed: isAccountCollapsed,
-                                    onToggleCollapse: { collapsedAccounts.toggle(group.id) }
-                                )
-                            }
-                            if !isAccountCollapsed {
-                                if let error = group.error {
-                                    inlineErrorBlock(error)
-                                } else {
-                                    switch settings.groupBy {
-                                    case .repository:
-                                        repositorySections(group)
-                                    case .date:
-                                        dateRows(group)
-                                    }
-                                }
-                            }
+                if UITestMock.isLandingScreenshot {
+                    // ImageRenderer has no viewport to drive scroll or lazy
+                    // layout. Materialize the deterministic fixture so every
+                    // real row is present in the 4× render.
+                    VStack(spacing: 0) {
+                        notificationGroups(visibleGroups)
+                    }
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
+                            notificationGroups(visibleGroups)
                         }
                     }
                 }
@@ -120,6 +118,36 @@ struct NotificationsListView: View {
 
     private var showAccountHeaders: Bool {
         accountsStore.accounts.count > 1 || settings.showAccountHeader
+    }
+
+    @ViewBuilder
+    private func notificationGroups(_ visibleGroups: [AccountNotifications]) -> some View {
+        ForEach(visibleGroups) { group in
+            // Only an account whose header (and chevron) is visible can be
+            // collapsed.
+            let isAccountCollapsed = showAccountHeaders
+                && collapsedAccounts.contains(group.id)
+            if showAccountHeaders {
+                AccountHeader(
+                    account: group.account,
+                    hasError: group.error != nil,
+                    isCollapsed: isAccountCollapsed,
+                    onToggleCollapse: { collapsedAccounts.toggle(group.id) }
+                )
+            }
+            if !isAccountCollapsed {
+                if let error = group.error {
+                    inlineErrorBlock(error)
+                } else {
+                    switch settings.groupBy {
+                    case .repository:
+                        repositorySections(group)
+                    case .date:
+                        dateRows(group)
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Grouping modes
@@ -204,6 +232,28 @@ struct NotificationsListView: View {
             .buttonStyle(.plain)
             .help("Open repository")
             Spacer()
+            repositoryActions(repository: repository, account: account)
+            sectionCollapseToggle(
+                isCollapsed: isCollapsed,
+                label: repository.fullName,
+                action: onToggleCollapse
+            )
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        // Lightest material that still masks rows scrolling under the pinned
+        // header; .bar reads as a heavy chrome strip on the popover material.
+        .background(.ultraThinMaterial)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onToggleCollapse)
+    }
+
+    @ViewBuilder
+    private func repositoryActions(repository: GHNotification.Repository, account: Account) -> some View {
+        if UITestMock.isLandingScreenshot {
+            Image(systemName: "checkmark")
+            Image(systemName: "eye.slash")
+        } else {
             Button {
                 Task { await notificationsStore.markRepoDone(fullName: repository.fullName, account: account) }
             } label: {
@@ -218,19 +268,7 @@ struct NotificationsListView: View {
             }
             .buttonStyle(.borderless)
             .help("Mark repository as read")
-            sectionCollapseToggle(
-                isCollapsed: isCollapsed,
-                label: repository.fullName,
-                action: onToggleCollapse
-            )
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        // Lightest material that still masks rows scrolling under the pinned
-        // header; .bar reads as a heavy chrome strip on the popover material.
-        .background(.ultraThinMaterial)
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onToggleCollapse)
     }
 
     private func emptyState(
