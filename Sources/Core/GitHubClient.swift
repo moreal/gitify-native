@@ -82,7 +82,14 @@ struct GitHubClient {
     let baseURL: URL
     let token: String
 
-    private static let session = URLSession.makeGitifySession()
+    private static let defaultSession = URLSession.makeGitifySession()
+    private let session: URLSession
+
+    init(baseURL: URL, token: String, session: URLSession? = nil) {
+        self.baseURL = baseURL
+        self.token = token
+        self.session = session ?? Self.defaultSession
+    }
 
     private static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
@@ -129,7 +136,7 @@ struct GitHubClient {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await Self.session.data(for: request)
+            (data, response) = try await session.data(for: request)
         } catch {
             throw GitHubAPIError(transport: error)
         }
@@ -156,9 +163,8 @@ struct GitHubClient {
 
     // MARK: - Notifications
 
-    /// A short page terminates pagination, so this must match `per_page`
-    /// below or fetchAll would loop forever.
-    private static let notificationsPageSize = 100
+    /// Unlike most REST endpoints, notifications allow at most 50 per page.
+    private static let notificationsPageSize = 50
 
     /// fetchAll pages through every result (upstream fetchAllNotifications);
     /// off fetches only the first page. Also reports the server-recommended
@@ -170,24 +176,39 @@ struct GitHubClient {
     ) async throws -> (items: [GHNotification], serverPollInterval: TimeInterval?) {
         var all: [GHNotification] = []
         var serverPollInterval: TimeInterval?
-        var page = 1
+        var nextRequest = request("GET", "notifications", query: [
+            URLQueryItem(name: "all", value: String(includeRead)),
+            URLQueryItem(name: "participating", value: String(participating)),
+            URLQueryItem(name: "per_page", value: String(Self.notificationsPageSize)),
+            URLQueryItem(name: "page", value: "1"),
+        ])
         while true {
-            let (data, http) = try await send(request("GET", "notifications", query: [
-                URLQueryItem(name: "all", value: String(includeRead)),
-                URLQueryItem(name: "participating", value: String(participating)),
-                URLQueryItem(name: "per_page", value: String(Self.notificationsPageSize)),
-                URLQueryItem(name: "page", value: String(page)),
-            ]))
+            let (data, http) = try await send(nextRequest)
             let pageItems = try Self.decoder.decode([GHNotification].self, from: data)
             if serverPollInterval == nil {
                 serverPollInterval = http.value(forHTTPHeaderField: "X-Poll-Interval")
                     .flatMap(TimeInterval.init)
             }
             all.append(contentsOf: pageItems)
-            if !fetchAll || pageItems.count < Self.notificationsPageSize { break }
-            page += 1
+            // A server can return fewer items than requested and still have
+            // another page; the Link header is the authoritative signal.
+            guard fetchAll, let nextURL = Self.nextPageURL(from: http) else { break }
+            nextRequest.url = nextURL
         }
         return (all, serverPollInterval)
+    }
+
+    private static func nextPageURL(from response: HTTPURLResponse) -> URL? {
+        for link in (response.value(forHTTPHeaderField: "Link") ?? "").split(separator: ",") {
+            let parts = link.split(separator: ";")
+            guard parts.dropFirst().contains(where: {
+                $0.trimmingCharacters(in: .whitespaces) == #"rel="next""#
+            }), let target = parts.first?.trimmingCharacters(in: .whitespaces),
+                  target.hasPrefix("<"), target.hasSuffix(">")
+            else { continue }
+            return URL(string: String(target.dropFirst().dropLast()))
+        }
+        return nil
     }
 
     func markThreadRead(id: String) async throws {

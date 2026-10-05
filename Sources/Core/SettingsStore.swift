@@ -30,7 +30,7 @@ final class SettingsStore: ObservableObject {
     @Published var participating: Bool { didSet { save() } }
     /// Also fetch read notifications (`all` API param).
     @Published var fetchReadNotifications: Bool { didSet { save() } }
-    /// Paginate through every page; off = first page (100) only.
+    /// Paginate through every page; off = first page (up to 50) only.
     @Published var fetchAllNotifications: Bool { didSet { save() } }
     /// Enrich PR/Issue notifications with state (colored icons, numbers, deep links).
     @Published var detailedNotifications: Bool { didSet { save() } }

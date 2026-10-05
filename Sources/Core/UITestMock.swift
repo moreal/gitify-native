@@ -158,19 +158,21 @@ final class UITestMockURLProtocol: URLProtocol {
     override func stopLoading() {}
 
     override func startLoading() {
-        let (status, body) = Self.respond(to: request)
+        let (status, body, nextLink) = Self.respond(to: request)
+        var headers = ["Content-Type": "application/json"]
+        if let nextLink { headers["Link"] = nextLink }
         let response = HTTPURLResponse(
             url: request.url!,
             statusCode: status,
             httpVersion: "HTTP/1.1",
-            headerFields: ["Content-Type": "application/json"]
+            headerFields: headers
         )!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: body)
         client?.urlProtocolDidFinishLoading(self)
     }
 
-    private static func respond(to request: URLRequest) -> (Int, Data) {
+    private static func respond(to request: URLRequest) -> (Int, Data, String?) {
         lock.lock()
         defer { lock.unlock() }
         var ids = unreadIDs ?? Set(1...UITestMock.notificationCount)
@@ -186,25 +188,32 @@ final class UITestMockURLProtocol: URLProtocol {
                 URLComponents(url: $0, resolvingAgainstBaseURL: false)?.queryItems
             } ?? []
             let page = query.first { $0.name == "page" }?.value.flatMap(Int.init) ?? 1
-            let perPage = query.first { $0.name == "per_page" }?.value.flatMap(Int.init) ?? 50
+            let perPage = min(50, query.first { $0.name == "per_page" }?.value.flatMap(Int.init) ?? 50)
             let sorted = ids.sorted()
             let start = (page - 1) * perPage
             let slice = start < sorted.count
                 ? Array(sorted[start..<min(start + perPage, sorted.count)])
                 : []
-            return (200, notificationsJSON(slice))
+            var nextLink: String?
+            if start + perPage < sorted.count,
+               var components = URLComponents(url: request.url!, resolvingAgainstBaseURL: false) {
+                components.queryItems = query.filter { $0.name != "page" }
+                    + [URLQueryItem(name: "page", value: String(page + 1))]
+                nextLink = components.url.map { "<\($0.absoluteString)>; rel=\"next\"" }
+            }
+            return (200, notificationsJSON(slice), nextLink)
         }
         if path.hasPrefix("/notifications/threads/") {
             let last = path.split(separator: "/").last.map(String.init) ?? ""
             if last == "subscription" {
-                return (200, Data(#"{"ignored":true}"#.utf8))
+                return (200, Data(#"{"ignored":true}"#.utf8), nil)
             }
             if let threadID = Int(last), method == "PATCH" || method == "DELETE" {
                 ids.remove(threadID - 1000)
-                return (method == "DELETE" ? 204 : 205, Data())
+                return (method == "DELETE" ? 204 : 205, Data(), nil)
             }
         }
-        return (200, Data("{}".utf8))
+        return (200, Data("{}".utf8), nil)
     }
 
     private static func notificationsJSON(_ ids: [Int]) -> Data {
